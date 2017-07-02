@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title> 文本分类</title>
+  <meta name="description" content="文本分类">
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="canonical" href="/2017/04/21/text-classification-README.html">
+  <link rel="alternate" type="application/rss+xml" title="PaddlePaddle Model Zoo" href="/feed.xml">
+  
+  
+</head>
+
+
+  <body>
+
+    <header class="site-header" role="banner">
+
+  <div class="wrapper">
+    
+    
+    <a class="site-title" href="/">PaddlePaddle Model Zoo</a>
+  
+    
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+              <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+              <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger">
+          
+            
+            
+          
+            
+            
+            <a class="page-link" href="/about/">About</a>
+            
+          
+            
+            
+          
+            
+            
+          
+            
+            
+          
+            
+            
+          
+            
+            
+          
+        </div>
+      </nav>
+    
+  </div>
+</header>
+
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline"> 文本分类</h1>
+    <p class="post-meta">
+      <time datetime="2017-04-21T00:00:00+08:00" itemprop="datePublished">
+        
+        Apr 21, 2017
+      </time>
+      </p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <h1 id="文本分类">文本分类</h1>
+
+<p>以下是本例目录包含的文件以及对应说明:</p>
+
+<div class="language-text highlighter-rouge"><pre class="highlight"><code>.
+├── images              # 文档中的图片
+│   ├── cnn_net.png
+│   └── dnn_net.png
+├── index.html          # 文档
+├── infer.py            # 预测脚本
+├── network_conf.py     # 本例中涉及的各种网络结构均定义在此文件中，若进一步修改模型结构，请查看此文件
+├── reader.py           # 读取数据接口，若使用自定义格式的数据，请查看此文件
+├── README.md           # 文档
+├── run.sh              # 训练任务运行脚本，直接运行此脚本，将以默认参数开始训练任务
+├── train.py            # 训练脚本
+└── utils.py            # 定义通用的函数，例如：打印日志、解析命令行参数、构建字典、加载字典等
+</code></pre>
+</div>
+
+<h2 id="简介">简介</h2>
+<p>文本分类任务根据给定一条文本的内容，判断该文本所属的类别，是自然语言处理领域的一项重要的基础任务。<a href="https://github.com/PaddlePaddle/book">PaddleBook</a> 中的<a href="https://github.com/PaddlePaddle/book/blob/develop/06.understand_sentiment/README.cn.md">情感分类</a>一课，正是一个典型的文本分类任务，任务流程如下：</p>
+
+<ol>
+  <li>收集电影评论网站的用户评论数据。</li>
+  <li>清洗，标记。</li>
+  <li>模型设计。</li>
+  <li>模型学习效果评估。</li>
+</ol>
+
+<p>训练好的分类器能够<strong>自动判断</strong>新出现的用户评论的情感是正面还是负面，在舆情监控、营销策划、产品品牌价值评估等任务中，能够起到重要作用。以上过程也是我们去完成一个新的文本分类任务需要遵循的常规流程。可以看到，深度学习方法的巨大优势体现在：<strong>免除复杂的特征的设计，只需要对原始文本进行基础的清理、标注即可</strong>。</p>
+
+<p><a href="https://github.com/PaddlePaddle/book">PaddleBook</a> 中的<a href="https://github.com/PaddlePaddle/book/blob/develop/06.understand_sentiment/README.cn.md">情感分类</a>介绍了一个较为复杂的栈式双向 LSTM 模型，循环神经网络在一些需要理解语言语义的复杂任务中有着明显的优势，但计算量大，通常对调参技巧也有着更高的要求。在对计算时间有一定限制的任务中，也会考虑其它模型。除了计算时间的考量，更重要的一点：<strong>模型选择往往是机器学习任务成功的基础</strong>。机器学习任务的目标始终是提高泛化能力，也就是对未知的新的样本预测的能力：</p>
+
+<ol>
+  <li>简单模型拟合能力不足，无法精确拟合训练样本，更加无法期待模型能够准确地预测没有出现在训练样本集中的未知样本，这就是<strong>欠拟合</strong>问题。</li>
+  <li>然而，过于复杂的模型轻松“记忆”了训练样本集中的每一个样本，但对于没有出现在训练样本集中的未知样本却毫无识别能力，这就是<strong>过拟合</strong>问题。</li>
+</ol>
+
+<p>“No Free Lunch (NFL)” 是机器学习任务基本原则之一：没有任何一种模型是天生优于其他模型的。模型的设计和选择建立在了解不同模型特性的基础之上，但同时也是一个多次实验评估的过程。在本例中，我们继续向大家介绍几种最常用的文本分类模型，它们的能力和复杂程度不同，帮助大家对比学习这些模型学习效果之间的差异，针对不同的场景选择使用。</p>
+
+<h2 id="模型详解">模型详解</h2>
+
+<p><code class="highlighter-rouge">network_conf.py</code> 中包括以下模型：</p>
+
+<ol>
+  <li><code class="highlighter-rouge">fc_net</code>： DNN 模型，是一个非序列模型。使用基本的全连接结构。</li>
+  <li><code class="highlighter-rouge">convolution_net</code>：浅层 CNN 模型，是一个基础的序列模型，能够处理变长的序列输入，提取一个局部区域之内的特征。</li>
+</ol>
+
+<p>我们以情感分类任务为例，简单说明序列模型和非序列模型之间的差异。情感分类是一项常见的文本分类任务，模型自动判断文本中表现出的情感是正向还是负向。以句子 “The apple is not bad” 为例，”not bad” 是决定这个句子情感的关键：</p>
+
+<ul>
+  <li>对于 DNN 模型来说，只知道句子中有一个 “not” 和一个 “bad”，两者之间的顺序关系在输入网络时已丢失，网络不再有机会学习序列之间的顺序信息。</li>
+  <li>CNN 模型接受文本序列作为输入，保留了 “not bad” 之间的顺序信息。</li>
+</ul>
+
+<p>两者各自的一些特点简单总结如下：</p>
+
+<ol>
+  <li>DNN 的计算量可以远低于 CNN / RNN 模型，在对响应时间有要求的任务中具有优势。</li>
+  <li>DNN 刻画的往往是频繁词特征，潜在会受到分词错误的影响，但对一些依赖关键词特征也能做的不错的任务：如 Spam 短信检测，依然是一个有效的模型。</li>
+  <li>在大多数需要一定语义理解（例如，借助上下文消除语义中的歧义）的文本分类任务上，以 CNN / RNN 为代表的序列模型的效果往往好于 DNN 模型。</li>
+</ol>
+
+<h3 id="1-dnn-模型">1. DNN 模型</h3>
+
+<p><strong>DNN 模型结构入下图所示：</strong></p>
+
+<p align="center">
+<img src="images/dnn_net.png" width="90%" align="center" /><br />
+图1. 本例中的 DNN 文本分类模型
+</p>
+
+<p>在 PaddlePaddle 实现该 DNN 结构的代码见 <code class="highlighter-rouge">network_conf.py</code> 中的 <code class="highlighter-rouge">fc_net</code> 函数，模型主要分为如下几个部分：</p>
+
+<ul>
+  <li>
+    <p><strong>词向量层</strong>：为了更好地表示不同词之间语义上的关系，首先将词语转化为固定维度的向量。训练完成后，词与词语义上的相似程度可以用它们的词向量之间的距离来表示，语义上越相似，距离越近。关于词向量的更多信息请参考PaddleBook中的<a href="https://github.com/PaddlePaddle/book/tree/develop/04.word2vec">词向量</a>一节。</p>
+  </li>
+  <li>
+    <p><strong>最大池化层</strong>：最大池化在时间序列上进行，池化过程消除了不同语料样本在单词数量多少上的差异，并提炼出词向量中每一下标位置上的最大值。经过池化后，词向量层输出的向量序列被转化为一条固定维度的向量。例如，假设最大池化前向量的序列为<code class="highlighter-rouge">[[2,3,5],[7,3,6],[1,4,0]]</code>，则最大池化的结果为：<code class="highlighter-rouge">[7,4,6]</code>。</p>
+  </li>
+  <li>
+    <p><strong>全连接隐层</strong>：经过最大池化后的向量被送入两个连续的隐层，隐层之间为全连接结构。</p>
+  </li>
+  <li>
+    <p><strong>输出层</strong>：输出层的神经元数量和样本的类别数一致，例如在二分类问题中，输出层会有2个神经元。通过Softmax激活函数，输出结果是一个归一化的概率分布，和为1，因此第$i$个神经元的输出就可以认为是样本属于第$i$类的预测概率。</p>
+  </li>
+</ul>
+
+<p>该 DNN 模型默认对输入的语料进行二分类（<code class="highlighter-rouge">class_dim=2</code>），embedding（词向量）维度默认为28（<code class="highlighter-rouge">emd_dim=28</code>），两个隐层均使用Tanh激活函数（<code class="highlighter-rouge">act=paddle.activation.Tanh()</code>）。需要注意的是，该模型的输入数据为整数序列，而不是原始的单词序列。事实上，为了处理方便，我们一般会事先将单词根据词频顺序进行 id 化，即将词语转化成在字典中的序号。</p>
+
+<h3 id="2-cnn-模型">2. CNN 模型</h3>
+
+<p><strong>CNN 模型结构如下图所示：</strong></p>
+
+<p align="center">
+<img src="images/cnn_net.png" width="90%" align="center" /><br />
+图2. 本例中的 CNN 文本分类模型
+</p>
+
+<p>通过 PaddlePaddle 实现该 CNN 结构的代码见 <code class="highlighter-rouge">network_conf.py</code> 中的 <code class="highlighter-rouge">convolution_net</code> 函数，模型主要分为如下几个部分:</p>
+
+<ul>
+  <li>
+    <p><strong>词向量层</strong>：与 DNN 中词向量层的作用一样，将词语转化为固定维度的向量，利用向量之间的距离来表示词之间的语义相关程度。如图2所示，将得到的词向量定义为行向量，再将语料中所有的单词产生的行向量拼接在一起组成矩阵。假设词向量维度为5，句子 “The cat sat on the read mat” 含 7 个词语，那么得到的矩阵维度为 7*5。关于词向量的更多信息请参考 PaddleBook 中的<a href="https://github.com/PaddlePaddle/book/tree/develop/04.word2vec">词向量</a>一节。</p>
+  </li>
+  <li>
+    <p><strong>卷积层</strong>： 文本分类中的卷积在时间序列上进行，即卷积核的宽度和词向量层产出的矩阵一致，卷积沿着矩阵的高度方向进行。卷积后得到的结果被称为“特征图”（feature map）。假设卷积核的高度为 $h$，矩阵的高度为 $N$，卷积的步长为 1，则得到的特征图为一个高度为 $N+1-h$ 的向量。可以同时使用多个不同高度的卷积核，得到多个特征图。</p>
+  </li>
+  <li>
+    <p><strong>最大池化层</strong>: 对卷积得到的各个特征图分别进行最大池化操作。由于特征图本身已经是向量，因此这里的最大池化实际上就是简单地选出各个向量中的最大元素。各个最大元素又被拼接在一起，组成新的向量，显然，该向量的维度等于特征图的数量，也就是卷积核的数量。举例来说，假设我们使用了四个不同的卷积核，卷积产生的特征图分别为：<code class="highlighter-rouge">[2,3,5]</code>、<code class="highlighter-rouge">[8,2,1]</code>、<code class="highlighter-rouge">[5,7,7,6]</code> 和 <code class="highlighter-rouge">[4,5,1,8]</code>，由于卷积核的高度不同，因此产生的特征图尺寸也有所差异。分别在这四个特征图上进行最大池化，结果为：<code class="highlighter-rouge">[5]</code>、<code class="highlighter-rouge">[8]</code>、<code class="highlighter-rouge">[7]</code>和<code class="highlighter-rouge">[8]</code>，最后将池化结果拼接在一起，得到<code class="highlighter-rouge">[5,8,7,8]</code>。</p>
+  </li>
+  <li>
+    <p><strong>全连接与输出层</strong>：将最大池化的结果通过全连接层输出，与 DNN 模型一样，最后输出层的神经元个数与样本的类别数量一致，且输出之和为 1。</p>
+  </li>
+</ul>
+
+<p>CNN 网络的输入数据类型和 DNN 一致。PaddlePaddle 中已经封装好的带有池化的文本序列卷积模块：<code class="highlighter-rouge">paddle.networks.sequence_conv_pool</code>，可直接调用。该模块的 <code class="highlighter-rouge">context_len</code> 参数用于指定卷积核在同一时间覆盖的文本长度，即图 2 中的卷积核的高度。<code class="highlighter-rouge">hidden_size</code> 用于指定该类型的卷积核的数量。本例代码默认使用了 128 个大小为 3 的卷积核和 128 个大小为 4 的卷积核，这些卷积的结果经过最大池化和结果拼接后产生一个 256 维的向量，向量经过一个全连接层输出最终的预测结果。</p>
+
+<h2 id="使用-paddlepaddle-内置数据运行">使用 PaddlePaddle 内置数据运行</h2>
+
+<h3 id="如何训练">如何训练</h3>
+
+<p>在终端中执行 <code class="highlighter-rouge">sh run.sh</code> 以下命令， 将以 PaddlePaddle 内置的情感分类数据集：<code class="highlighter-rouge">paddle.dataset.imdb</code> 直接运行本例，会看到如下输入：</p>
+
+<div class="language-text highlighter-rouge"><pre class="highlight"><code>Pass 0, Batch 0, Cost 0.696031, {'__auc_evaluator_0__': 0.47360000014305115, 'classification_error_evaluator': 0.5}
+Pass 0, Batch 100, Cost 0.544438, {'__auc_evaluator_0__': 0.839249312877655, 'classification_error_evaluator': 0.30000001192092896}
+Pass 0, Batch 200, Cost 0.406581, {'__auc_evaluator_0__': 0.9030032753944397, 'classification_error_evaluator': 0.2199999988079071}
+Test at Pass 0, {'__auc_evaluator_0__': 0.9289745092391968, 'classification_error_evaluator': 0.14927999675273895}
+</code></pre>
+</div>
+<p>日志每隔 100 个 batch 输出一次，输出信息包括：（1）Pass 序号；（2）Batch 序号；（3）依次输出当前 Batch 上评估指标的评估结果。评估指标在配置网络拓扑结构时指定，在上面的输出中，输出了训练样本集之的 AUC 以及错误率指标。</p>
+
+<h3 id="如何预测">如何预测</h3>
+
+<p>训练结束后模型默认存储在当前工作目录下，在终端中执行 <code class="highlighter-rouge">python infer.py</code> ，预测脚本会加载训练好的模型进行预测。</p>
+
+<ul>
+  <li>默认加载使用 <code class="highlighter-rouge">paddle.data.imdb.train</code> 训练一个 Pass 产出的 DNN 模型对 <code class="highlighter-rouge">paddle.dataset.imdb.test</code> 进行测试</li>
+</ul>
+
+<p>会看到如下输出：</p>
+
+<div class="language-text highlighter-rouge"><pre class="highlight"><code>positive        0.9275 0.0725   previous reviewer &lt;unk&gt; &lt;unk&gt; gave a much better &lt;unk&gt; of the films plot details than i could what i recall mostly is that it was just so beautiful in every sense emotionally visually &lt;unk&gt; just &lt;unk&gt; br if you like movies that are wonderful to look at and also have emotional content to which that beauty is relevant i think you will be glad to have seen this extraordinary and unusual work of &lt;unk&gt; br on a scale of 1 to 10 id give it about an &lt;unk&gt; the only reason i shy away from 9 is that it is a mood piece if you are in the mood for a really artistic very romantic film then its a 10 i definitely think its a mustsee but none of us can be in that mood all the time so overall &lt;unk&gt;
+negative        0.0300 0.9700   i love scifi and am willing to put up with a lot scifi &lt;unk&gt; are usually &lt;unk&gt; &lt;unk&gt; and &lt;unk&gt; i tried to like this i really did but it is to good tv scifi as &lt;unk&gt; 5 is to star trek the original silly &lt;unk&gt; cheap cardboard sets stilted dialogues cg that doesnt match the background and painfully onedimensional characters cannot be overcome with a scifi setting im sure there are those of you out there who think &lt;unk&gt; 5 is good scifi tv its not its clichéd and &lt;unk&gt; while us viewers might like emotion and character development scifi is a genre that does not take itself seriously &lt;unk&gt; star trek it may treat important issues yet not as a serious philosophy its really difficult to care about the characters here as they are not simply &lt;unk&gt; just missing a &lt;unk&gt; of life their actions and reactions are wooden and predictable often painful to watch the makers of earth know its rubbish as they have to always say gene &lt;unk&gt; earth otherwise people would not continue watching &lt;unk&gt; &lt;unk&gt; must be turning in their &lt;unk&gt; as this dull cheap poorly edited watching it without &lt;unk&gt; breaks really brings this home &lt;unk&gt; &lt;unk&gt; of a show &lt;unk&gt; into space spoiler so kill off a main character and then bring him back as another actor &lt;unk&gt; &lt;unk&gt; all over again
+</code></pre>
+</div>
+
+<p>输出日志每一行是对一条样本预测的结果，以 <code class="highlighter-rouge">\t</code> 分隔，共 3 列，分别是：（1）预测类别标签；（2）样本分别属于每一类的概率，内部以空格分隔；（3）输入文本。</p>
+
+<h2 id="使用自定义数据训练和预测">使用自定义数据训练和预测</h2>
+
+<h3 id="如何训练-1">如何训练</h3>
+
+<ol>
+  <li>
+    <p>数据组织</p>
+
+    <p>假设有如下格式的训练数据：每一行为一条样本，以 <code class="highlighter-rouge">\t</code> 分隔，第一列是类别标签，第二列是输入文本的内容，文本内容中的词语以空格分隔。以下是两条示例数据：</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code> positive        PaddlePaddle is good
+ negative        What a terrible weather
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>编写数据读取接口</p>
+
+    <p>自定义数据读取接口只需编写一个 Python 生成器实现<strong>从原始输入文本中解析一条训练样本</strong>的逻辑。以下代码片段实现了读取原始数据返回类型为： <code class="highlighter-rouge">paddle.data_type.integer_value_sequence</code>（词语在字典的序号）和 <code class="highlighter-rouge">paddle.data_type.integer_value</code>（类别标签）的 2 个输入给网络中定义的 2 个 <code class="highlighter-rouge">data_layer</code> 的功能。</p>
+    <div class="language-python highlighter-rouge"><pre class="highlight"><code> <span class="k">def</span> <span class="nf">train_reader</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">word_dict</span><span class="p">,</span> <span class="n">label_dict</span><span class="p">):</span>
+     <span class="k">def</span> <span class="nf">reader</span><span class="p">():</span>
+         <span class="n">UNK_ID</span> <span class="o">=</span> <span class="n">word_dict</span><span class="p">[</span><span class="s">"&lt;UNK&gt;"</span><span class="p">]</span>
+         <span class="n">word_col</span> <span class="o">=</span> <span class="mi">0</span>
+         <span class="n">lbl_col</span> <span class="o">=</span> <span class="mi">1</span>
+
+         <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">data_dir</span><span class="p">):</span>
+             <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">file_name</span><span class="p">),</span> <span class="s">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                 <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+                     <span class="n">line_split</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">"</span><span class="se">\t</span><span class="s">"</span><span class="p">)</span>
+                     <span class="n">word_ids</span> <span class="o">=</span> <span class="p">[</span>
+                         <span class="n">word_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">UNK_ID</span><span class="p">)</span>
+                         <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">line_split</span><span class="p">[</span><span class="n">word_col</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                     <span class="p">]</span>
+                     <span class="k">yield</span> <span class="n">word_ids</span><span class="p">,</span> <span class="n">label_dict</span><span class="p">[</span><span class="n">line_split</span><span class="p">[</span><span class="n">lbl_col</span><span class="p">]]</span>
+
+     <span class="k">return</span> <span class="n">reader</span>
+</code></pre>
+    </div>
+
+    <ul>
+      <li>关于 PaddlePaddle 中 <code class="highlighter-rouge">data_layer</code> 接受输入数据的类型，以及数据读取接口对应该返回数据的格式，请参考 <a href="http://www.paddlepaddle.org/release_doc/0.9.0/doc_cn/ui/data_provider/pydataprovider2.html#input-types">input-types</a> 一节。</li>
+      <li>以上代码片段详见本例目录下的 <code class="highlighter-rouge">reader.py</code> 脚本，<code class="highlighter-rouge">reader.py</code> 同时提供了读取测试数据的全部代码。</li>
+    </ul>
+
+    <p>接下来，只需要将数据读取函数 <code class="highlighter-rouge">train_reader</code> 作为参数传递给 <code class="highlighter-rouge">train.py</code> 脚本中的 <code class="highlighter-rouge">paddle.batch</code> 接口即可使用自定义数据接口读取数据，调用方式如下：</p>
+
+    <div class="language-python highlighter-rouge"><pre class="highlight"><code> <span class="n">train_reader</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span>
+         <span class="n">paddle</span><span class="o">.</span><span class="n">reader</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span>
+             <span class="n">reader</span><span class="o">.</span><span class="n">train_reader</span><span class="p">(</span><span class="n">train_data_dir</span><span class="p">,</span> <span class="n">word_dict</span><span class="p">,</span> <span class="n">lbl_dict</span><span class="p">),</span>
+             <span class="n">buf_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">),</span>
+         <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">)</span>
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>修改命令行参数</p>
+
+    <ul>
+      <li>如果将数据组织成示例数据的同样的格式，只需在 <code class="highlighter-rouge">run.sh</code> 脚本中修改 <code class="highlighter-rouge">train.py</code> 启动参数，指定 <code class="highlighter-rouge">train_data_dir</code> 参数，可以直接运行本例，无需修改数据读取接口 <code class="highlighter-rouge">reader.py</code>。</li>
+      <li>执行 <code class="highlighter-rouge">python train.py --help</code> 可以获取<code class="highlighter-rouge">train.py</code> 脚本各项启动参数的详细说明，主要参数如下：
+        <ul>
+          <li><code class="highlighter-rouge">nn_type</code>：选择要使用的模型，目前支持两种：“dnn” 或者 “cnn”。</li>
+          <li><code class="highlighter-rouge">train_data_dir</code>：指定训练数据所在的文件夹，使用自定义数据训练，必须指定此参数，否则使用<code class="highlighter-rouge">paddle.dataset.imdb</code>训练，同时忽略<code class="highlighter-rouge">test_data_dir</code>，<code class="highlighter-rouge">word_dict</code>，和 <code class="highlighter-rouge">label_dict</code> 参数。</li>
+          <li><code class="highlighter-rouge">test_data_dir</code>：指定测试数据所在的文件夹，若不指定将不进行测试。</li>
+          <li><code class="highlighter-rouge">word_dict</code>：字典文件所在的路径，若不指定，将从训练数据根据词频统计，自动建立字典。</li>
+          <li><code class="highlighter-rouge">label_dict</code>：类别标签字典，用于将字符串类型的类别标签，映射为整数类型的序号。</li>
+          <li><code class="highlighter-rouge">batch_size</code>：指定多少条样本后进行一次神经网络的前向运行及反向更新。</li>
+          <li><code class="highlighter-rouge">num_passes</code>：指定训练多少个轮次。</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ol>
+
+<h3 id="如何预测-1">如何预测</h3>
+
+<ol>
+  <li>
+    <p>修改 <code class="highlighter-rouge">infer.py</code> 中以下变量，指定使用的模型、指定测试数据。</p>
+
+    <div class="language-python highlighter-rouge"><pre class="highlight"><code> <span class="n">model_path</span> <span class="o">=</span> <span class="s">"dnn_params_pass_00000.tar.gz"</span>  <span class="c"># 指定模型所在的路径</span>
+ <span class="n">nn_type</span> <span class="o">=</span> <span class="s">"dnn"</span>      <span class="c"># 指定测试使用的模型</span>
+ <span class="n">test_dir</span> <span class="o">=</span> <span class="s">"./data/test"</span>      <span class="c"># 指定测试文件所在的目录</span>
+ <span class="n">word_dict</span> <span class="o">=</span> <span class="s">"./data/dict/word_dict.txt"</span>     <span class="c"># 指定字典所在的路径</span>
+ <span class="n">label_dict</span> <span class="o">=</span> <span class="s">"./data/dict/label_dict.txt"</span>    <span class="c"># 指定类别标签字典的路径</span>
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>在终端中执行 <code class="highlighter-rouge">python infer.py</code>。</p>
+  </li>
+</ol>
+
+  </div>
+
+  
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">PaddlePaddle Model Zoo</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li>
+            
+              PaddlePaddle Model Zoo
+            
+            </li>
+            
+            <li><a href="mailto:idl-paddle@baidu.com">idl-paddle@baidu.com</a></li>
+            
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/baidu"><span class="icon icon--github"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/></svg>
+</span><span class="username">baidu</span></a>
+
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/PaddlePaddle"><span class="icon icon--twitter"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/></svg>
+</span><span class="username">PaddlePaddle</span></a>
+
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Write an awesome description for your new site here. You can edit this line in _config.yml. It will appear in your document head meta (for Google search results) and in your feed.xml site description.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

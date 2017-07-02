@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title> 噪声对比估计加速词向量训练</title>
+  <meta name="description" content="噪声对比估计加速词向量训练">
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="canonical" href="/2017/04/21/nce-cost-README.html">
+  <link rel="alternate" type="application/rss+xml" title="PaddlePaddle Model Zoo" href="/feed.xml">
+  
+  
+</head>
+
+
+  <body>
+
+    <header class="site-header" role="banner">
+
+  <div class="wrapper">
+    
+    
+    <a class="site-title" href="/">PaddlePaddle Model Zoo</a>
+  
+    
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+              <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+              <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger">
+          
+            
+            
+          
+            
+            
+            <a class="page-link" href="/about/">About</a>
+            
+          
+            
+            
+          
+            
+            
+          
+            
+            
+          
+            
+            
+          
+            
+            
+          
+        </div>
+      </nav>
+    
+  </div>
+</header>
+
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline"> 噪声对比估计加速词向量训练</h1>
+    <p class="post-meta">
+      <time datetime="2017-04-21T00:00:00+08:00" itemprop="datePublished">
+        
+        Apr 21, 2017
+      </time>
+      </p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <h1 id="噪声对比估计加速词向量训练">噪声对比估计加速词向量训练</h1>
+
+<p>词向量是许多自然语言处理任务的基础，详细介绍可见 PaddleBook 中的<a href="https://github.com/PaddlePaddle/book/blob/develop/04.word2vec/README.cn.md">词向量</a>一节，其中通过训练神经概率语言模型（Neural Probabilistic Language Model, NPLM）得到词向量，是一种流行的方式。然而，神经概率语言模型的最后一层往往需要计算一个词典之上的概率分布，词典越大这一层的计算量也就越大，往往非常耗时。在models的另一篇我们已经介绍了<a href="https://github.com/PaddlePaddle/models/tree/develop/hsigmoid">Hsigmoid加速词向量训练</a>，这里我们介绍另一种加速词向量训练的方法：使用噪声对比估计（Noise-contrastive estimation, NCE）损失函数[<a href="#参考文献">1</a>]。</p>
+
+<h2 id="nce">NCE</h2>
+<p>NPLM 的最后一层 <code class="highlighter-rouge">softmax</code> 函数计算时需要考虑每个类别的指数项，必须计算字典中的所有单词，而在一般语料集上面字典往往非常大[<a href="#参考文献">3</a>]，从而导致整个训练过程十分耗时。NCE 是一种快速对离散分布进行估计的方法。与常用的 hierarchical-sigmoid [<a href="#参考文献">2</a>] 方法相比，NCE 不再使用复杂的二叉树来构造目标函数，而是采用相对简单的随机负采样，以大幅提升计算效率。</p>
+
+<p>假设已知具体的上下文 $h$，并且知道这个分布为 $P^h(w)$ ，并将从中抽样出来的数据作为正样例，而从一个噪音分布 $P_n(w)$ 抽样的数据作为负样例。我们可以任意选择合适的噪音分布，默认为无偏的均匀分布。这里我们同时假设噪音样例 $k$ 倍于数据样例，则训练数据被抽中的概率为[<a href="#参考文献">1</a>]：</p>
+
+<script type="math/tex; mode=display">P^h(D=1|w,\theta)=\frac { P_\theta^h(w) }{ P^h_\theta(w)+kP_n(w) } =\sigma (\Delta s_\theta(w,h))</script>
+
+<p>其中 $\Delta s_\theta(w,h)=s_\theta(w,h)-\log (kP_n(w))$ ，$s_\theta(w,h)$ 表示选择在生成 $w$ 字并处于上下文 $h$ 时的特征向量，整体目标函数的目的就是增大正样本的概率同时降低负样本的概率。目标函数如下[<a href="#参考文献">1</a>]：</p>
+
+<p><script type="math/tex">J^h(\theta )=E_{ P_d^h }\left[ \log { P^h(D=1|w,\theta ) }  \right] +kE_{ P_n }\left[ \log P^h (D=0|w,\theta ) \right]</script>
+<script type="math/tex">\\\\\qquad =E_{ P_d^h }\left[ \log { \sigma (\Delta s_\theta(w,h)) }  \right] +kE_{ P_n }\left[ \log (1-\sigma (\Delta s_\theta(w,h)))  \right]</script></p>
+
+<p>总体上来说，NCE 是通过构造逻辑回归（logistic regression），对正样例和负样例做二分类，对于每一个样本，将自身的预测词 label 作为正样例，同时采样出 $k$ 个其他词 label 作为负样例，从而只需要计算样本在这 $k+1$ 个 label 上的概率。相比原始的 <code class="highlighter-rouge">softmax </code> 分类需要计算每个类别的分数，然后归一化得到概率，节约了大量的计算时间。</p>
+
+<h2 id="实验数据">实验数据</h2>
+<p>本文采用 Penn Treebank (PTB) 数据集（<a href="http://www.fit.vutbr.cz/~imikolov/rnnlm/simple-examples.tgz">Tomas Mikolov预处理版本</a>）来训练语言模型。PaddlePaddle 提供 <a href="https://github.com/PaddlePaddle/Paddle/blob/develop/python/paddle/v2/dataset/imikolov.py">paddle.dataset.imikolov</a> 接口来方便调用这些数据，如果当前目录没有找到数据它会自动下载并验证文件的完整性。并提供大小为5的滑动窗口对数据做预处理工作，方便后期处理。语料语种为英文，共有42068句训练数据，3761句测试数据。</p>
+
+<h2 id="网络结构">网络结构</h2>
+<p>N-gram 神经概率语言模型详细网络结构见图1：</p>
+
+<p align="center">
+<img src="images/network_conf.png" width="70%" align="center" /><br />
+图1. 网络配置结构
+</p>
+<p>可以看到，模型主要分为如下几个部分构成：</p>
+
+<ol>
+  <li>
+    <p><strong>输入层</strong>：输入的 ptb 样本由原始的英文单词组成，将每个英文单词转换为字典中的 id 表示，使用唯一的 id 表示可以区分每个单词。</p>
+  </li>
+  <li>
+    <p><strong>词向量层</strong>：比起原先的 id 表示，词向量表示更能体现词与词之间的语义关系。这里使用可更新的 embedding 矩阵，将原先的 id 表示转换为固定维度的词向量表示。训练完成之后，词语之间的语义相似度可以使用词向量之间的距离来表示，语义越相似，距离越近。</p>
+  </li>
+  <li>
+    <p><strong>词向量拼接层</strong>：将词向量进行串联，并将词向量首尾相接形成一个长向量。这样可以方便后面全连接层的处理。</p>
+  </li>
+  <li>
+    <p><strong>全连接隐层</strong>：将上一层获得的长向量输入到一层隐层的神经网络，输出特征向量。全连接的隐层可以增强网络的学习能力。</p>
+  </li>
+  <li>
+    <p><strong>NCE层</strong>：训练时可以直接实用 PaddlePaddle 提供的 NCE Layer。</p>
+  </li>
+</ol>
+
+<h2 id="训练">训练</h2>
+<p>在命令行窗口运行命令<code class="highlighter-rouge">python train.py</code>可以直接开启训练任务。</p>
+
+<ul>
+  <li>程序第一次运行会检测用户缓存文件夹中是否包含 ptb 数据集，如果未包含，则自动下载。</li>
+  <li>运行过程中，每10个 batch 会打印模型训练在训练集上的代价值</li>
+  <li>每个 pass 结束后，会计算测试数据集上的损失，并同时会保存最新的模型快照。</li>
+</ul>
+
+<p>在模型文件<code class="highlighter-rouge">network_conf.py</code>中 NCE 调用代码如下：</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">cost</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">nce</span><span class="p">(</span>
+            <span class="nb">input</span><span class="o">=</span><span class="n">hidden_layer</span><span class="p">,</span>
+            <span class="n">label</span><span class="o">=</span><span class="n">next_word</span><span class="p">,</span>
+            <span class="n">num_classes</span><span class="o">=</span><span class="n">dict_size</span><span class="p">,</span>
+            <span class="n">param_attr</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">attr</span><span class="o">.</span><span class="n">Param</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">"nce_w"</span><span class="p">),</span>
+            <span class="n">bias_attr</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">attr</span><span class="o">.</span><span class="n">Param</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">"nce_b"</span><span class="p">),</span>
+            <span class="n">act</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">activation</span><span class="o">.</span><span class="n">Sigmoid</span><span class="p">(),</span>
+            <span class="n">num_neg_samples</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span>
+            <span class="n">neg_distribution</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<p>NCE 层的一些重要参数解释如下：</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">参数名</th>
+      <th style="text-align: left">参数作用</th>
+      <th style="text-align: left">介绍</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">param_attr / bias_attr</td>
+      <td style="text-align: left">用来设置参数名字</td>
+      <td style="text-align: left">方便预测阶段加载参数，具体在预测一节中介绍。</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">num_neg_samples</td>
+      <td style="text-align: left">负样本采样个数</td>
+      <td style="text-align: left">可以控制正负样本比例，这个值取值区间为 [1, 字典大小-1]，负样本个数越多则整个模型的训练速度越慢，模型精度也会越高</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">neg_distribution</td>
+      <td style="text-align: left">生成负样例标签的分布，默认是一个均匀分布</td>
+      <td style="text-align: left">可以自行控制负样本采样时各个类别的采样权重。例如：希望正样例为“晴天”时，负样例“洪水”在训练时更被着重区分，则可以将“洪水”这个类别的采样权重增加</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">act</td>
+      <td style="text-align: left">使用何种激活函数</td>
+      <td style="text-align: left">根据 NCE 的原理，这里应该使用 sigmoid 函数</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="预测">预测</h2>
+<ol>
+  <li>首先修改 <code class="highlighter-rouge">infer.py</code> 脚本的 <code class="highlighter-rouge">main</code> 函数指定需要测试的模型。</li>
+  <li>
+    <p>需要注意的是，<strong>预测和训练的计算逻辑不同</strong>，需要以一个全连接层:<code class="highlighter-rouge">paddle.layer.fc</code>替换训练使用的<code class="highlighter-rouge">paddle.train.nce</code>层， 并直接加载NCE学习到的参数，代码如下：</p>
+
+    <div class="language-python highlighter-rouge"><pre class="highlight"><code> <span class="n">prediction</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span>
+     <span class="n">size</span><span class="o">=</span><span class="n">dict_size</span><span class="p">,</span>
+     <span class="n">act</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">activation</span><span class="o">.</span><span class="n">Softmax</span><span class="p">(),</span>
+     <span class="n">bias_attr</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">attr</span><span class="o">.</span><span class="n">Param</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">"nce_b"</span><span class="p">),</span>
+     <span class="nb">input</span><span class="o">=</span><span class="n">hidden_layer</span><span class="p">,</span>
+     <span class="n">param_attr</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">attr</span><span class="o">.</span><span class="n">Param</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">"nce_w"</span><span class="p">))</span>
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>运行 <code class="highlighter-rouge">python infer.py</code>。程序首先会加载指定的模型，然后按照 batch 大小依次进行预测，并打印预测结果。预测的输出格式如下：</p>
+
+    <div class="language-text highlighter-rouge"><pre class="highlight"><code> 0.6734  their   may want to move
+
+</code></pre>
+    </div>
+
+    <p>每一行是一条预测结果，内部以“\t”分隔，共计3列：</p>
+    <ul>
+      <li>第一列：下一个词的概率。</li>
+      <li>第二列：模型预测的下一个词。</li>
+      <li>第三列：输入的 $n$ 个词语，内部以空格分隔。</li>
+    </ul>
+  </li>
+</ol>
+
+<h2 id="参考文献">参考文献</h2>
+<ol>
+  <li>
+    <p>Mnih A, Kavukcuoglu K. <a href="https://papers.nips.cc/paper/5165-learning-word-embeddings-efficiently-with-noise-contrastive-estimation.pdf">Learning word embeddings efficiently with noise-contrastive estimation</a>[C]//Advances in neural information processing systems. 2013: 2265-2273.</p>
+  </li>
+  <li>
+    <p>Morin, F., &amp; Bengio, Y. (2005, January). <a href="http://www.iro.umontreal.ca/~lisa/pointeurs/hierarchical-nnlm-aistats05.pdf">Hierarchical Probabilistic Neural Network Language Model</a>. In Aistats (Vol. 5, pp. 246-252).</p>
+  </li>
+  <li>
+    <p>Mnih A, Teh Y W. <a href="http://xueshu.baidu.com/s?wd=paperuri%3A%280735b97df93976efb333ac8c266a1eb2%29&amp;filter=sc_long_sign&amp;tn=SE_xueshusource_2kduw22v&amp;sc_vurl=http%3A%2F%2Farxiv.org%2Fabs%2F1206.6426&amp;ie=utf-8&amp;sc_us=5770715420073315630">A Fast and Simple Algorithm for Training Neural Probabilistic Language Models</a>[J]. Computer Science, 2012:1751-1758.</p>
+  </li>
+</ol>
+
+  </div>
+
+  
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">PaddlePaddle Model Zoo</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li>
+            
+              PaddlePaddle Model Zoo
+            
+            </li>
+            
+            <li><a href="mailto:idl-paddle@baidu.com">idl-paddle@baidu.com</a></li>
+            
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/baidu"><span class="icon icon--github"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/></svg>
+</span><span class="username">baidu</span></a>
+
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/PaddlePaddle"><span class="icon icon--twitter"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/></svg>
+</span><span class="username">PaddlePaddle</span></a>
+
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Write an awesome description for your new site here. You can edit this line in _config.yml. It will appear in your document head meta (for Google search results) and in your feed.xml site description.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

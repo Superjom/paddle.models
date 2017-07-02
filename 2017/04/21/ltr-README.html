@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title> 排序学习(Learning To Rank)</title>
+  <meta name="description" content="排序学习(Learning To Rank)">
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="canonical" href="/2017/04/21/ltr-README.html">
+  <link rel="alternate" type="application/rss+xml" title="PaddlePaddle Model Zoo" href="/feed.xml">
+  
+  
+</head>
+
+
+  <body>
+
+    <header class="site-header" role="banner">
+
+  <div class="wrapper">
+    
+    
+    <a class="site-title" href="/">PaddlePaddle Model Zoo</a>
+  
+    
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+              <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+              <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger">
+          
+            
+            
+          
+            
+            
+            <a class="page-link" href="/about/">About</a>
+            
+          
+            
+            
+          
+            
+            
+          
+            
+            
+          
+            
+            
+          
+            
+            
+          
+        </div>
+      </nav>
+    
+  </div>
+</header>
+
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline"> 排序学习(Learning To Rank)</h1>
+    <p class="post-meta">
+      <time datetime="2017-04-21T00:00:00+08:00" itemprop="datePublished">
+        
+        Apr 21, 2017
+      </time>
+      </p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <h1 id="排序学习learning-to-rank">排序学习(Learning To Rank)</h1>
+
+<p>排序学习技术[<a href="#参考文献1">1</a>]是构建排序模型的机器学习方法，在信息检索、自然语言处理，数据挖掘等机器学场景中具有重要作用。排序学习的主要目的是对给定一组文档，对任意查询请求给出反映相关性的文档排序。在本例子中，利用标注过的语料库训练两种经典排序模型RankNet[<a href="#参考文献4">4</a>]和LamdaRank[<a href="#参考文献6">6</a>]，分别可以生成对应的排序模型，能够对任意查询请求，给出相关性文档排序。</p>
+
+<p>RankNet模型在命令行输入：</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">python</span> <span class="n">ranknet</span><span class="o">.</span><span class="n">py</span>
+</code></pre>
+</div>
+
+<p>LambdaRank模型在命令行输入：</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">python</span> <span class="n">lambda_rank</span><span class="o">.</span><span class="n">py</span>
+</code></pre>
+</div>
+
+<p>用户只需要使用以上命令就完成排序模型的训练和预测，程序会自动下载内置数据集，无需手动下载。</p>
+
+<h2 id="背景介绍">背景介绍</h2>
+
+<p>排序学习技术随着互联网的快速增长而受到越来越多关注，是机器学习中的常见任务之一。一方面人工排序规则不能处理海量规模的候选数据，另一方面无法为不同渠道的候选数据给于合适的权重，因此排序学习在日常生活中应用非常广泛。排序学习起源于信息检索领域，目前仍然是许多信息检索场景中的核心模块，例如搜索引擎搜索结果排序，推荐系统候选集排序，在线广告排序等等。本例以文档检索任务阐述排序学习模型。</p>
+
+<p align="center">
+<img src="images/search_engine_example.png" width="30%" /><br />
+图1. 排序模型在文档检索的典型应用搜索引擎中的作用
+</p>
+
+<p>假定有一组文档$S$，文档检索任务是依据和请求的相关性，给出文档排列顺序。查询引擎根据查询请求，排序模型会给每个文档打出分数，依据打分情况倒序排列文档，得到查询结果。在训练模型时，给定一条查询，并给出对应的文档最佳排序和得分。在预测时候，给出查询请求，排序模型生成文档排序。常见的排序学习方法划分为以下三类：</p>
+
+<ul>
+  <li>
+    <p>Pointwise 方法</p>
+
+    <p>Pointwise方法是通过近似为回归问题解决排序问题，输入的单条样本为<strong>得分-文档</strong>，将每个查询-文档对的相关性得分作为实数分数或者序数分数，使得单个查询-文档对作为样本点(Pointwise的由来)，训练排序模型。预测时候对于指定输入，给出查询-文档对的相关性得分。</p>
+  </li>
+  <li>
+    <p>Pairwise方法</p>
+
+    <p>Pairwise方法是通过近似为分类问题解决排序问题，输入的单条样本为<strong>标签-文档对</strong>。对于一次查询的多个结果文档，组合任意两个文档形成文档对作为输入样本。即学习一个二分类器，对输入的一对文档对AB（Pairwise的由来），根据A相关性是否比B好，二分类器给出分类标签1或0。对所有文档对进行分类，就可以得到一组偏序关系，从而构造文档全集的排序关系。该类方法的原理是对给定的文档全集$S$，降低排序中的逆序文档对的个数来降低排序错误，从而达到优化排序结果的目的。</p>
+  </li>
+  <li>
+    <p>Listwise方法</p>
+
+    <p>Listwise方法是直接优化排序列表，输入为单条样本为一个<strong>文档排列</strong>。通过构造合适的度量函数衡量当前文档排序和最优排序差值，优化度量函数得到排序模型。由于度量函数很多具有非连续性的性质，优化困难。</p>
+  </li>
+</ul>
+
+<p align="center">
+<img src="images/learning_to_rank.jpg" width="50%" /><br />
+图2. 排序模型三类方法
+</p>
+
+<h2 id="实验数据">实验数据</h2>
+
+<p>本例中的实验数据采用了排序学习中的基准数据<a href="[http://research.microsoft.com/en-us/um/beijing/projects/letor/LETOR4.0/Data/MQ2007.rar](http://research.microsoft.com/en-us/um/beijing/projects/letor/LETOR4.0/Data/MQ2007.rar)">LETOR</a>语料库，部分来自于Gov2网站的查询请求结果，包含了约1700条查询请求结果文档列表，并对文档相关性做出了人工标注。其中，一条查询含有唯一的查询id，对应于多个具有相关性的文档，构成了一次查询请求结果文档列表。每个文档由一个一维数组的特征向量表示，并对应一个人工标注与查询的相关性分数。</p>
+
+<p>本例在第一次运行的时会自动下载LETOR MQ2007数据集并缓存，无需手动下载。</p>
+
+<p><code class="highlighter-rouge">mq2007</code>数据集分别提供了三种类型排序模型的生成格式，需要指定生成格式<code class="highlighter-rouge">format</code></p>
+
+<p>例如调用接口</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">pairwise_train_dataset</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">paddle</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">mq2007</span><span class="o">.</span><span class="n">train</span><span class="p">,</span> <span class="n">format</span><span class="o">=</span><span class="s">"pairwise"</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">left_doc</span><span class="p">,</span> <span class="n">right_doc</span> <span class="ow">in</span> <span class="n">pairwise_train_dataset</span><span class="p">():</span>
+    <span class="o">...</span>
+</code></pre>
+</div>
+
+<h2 id="模型概览">模型概览</h2>
+
+<p>对于排序模型，本例中提供了Pairwise方法的模型RankNet和Listwise方法的模型LambdaRank，分别代表了两类学习方法。Pointwise方法的排序模型退化为回归问题，请参考PaddleBook中<a href="https://github.com/PaddlePaddle/book/blob/develop/05.recommender_system/README.cn.md">推荐系统</a>一课。</p>
+
+<h2 id="ranknet排序模型">RankNet排序模型</h2>
+
+<p><a href="http://icml.cc/2015/wp-content/uploads/2015/06/icml_ranking.pdf">RankNet</a>是一种经典的Pairwise的排序学习方法，是典型的前向神经网络排序模型。在文档集合$S$中的第$i$个文档记做$U_i$，它的文档特征向量记做$x_i$，对于给定的一个文档对$U_i$, $U_j$，RankNet将输入的单个文档特征向量$x$映射到$f(x)$，得到$s_i=f(x_i)$, $s_j=f(x_j)$。将$U_i$相关性比$U_j$好的概率记做$P_{i,j}$，则</p>
+
+<script type="math/tex; mode=display">P_{i,j}=P(U_{i}>U_{j})=\frac{1}{1+e^{-\sigma (s_{i}-s_{j}))}}</script>
+
+<p>由于排序度量函数大多数非连续，非光滑，因此RankNet需要一个可以优化的度量函数$C$。首先使用交叉熵作为度量函数衡量预测代价，将损失函数$C$记做</p>
+
+<script type="math/tex; mode=display">C_{i,j}=-\bar{P_{i,j}}logP_{i,j}-(1-\bar{P_{i,j}})log(1-P_{i,j})</script>
+
+<p>其中$\bar{P_{i,j}}$代表真实概率，记做</p>
+
+<script type="math/tex; mode=display">\bar{P_{i,j}}=\frac{1}{2}(1+S_{i,j})</script>
+
+<p>而$S_{i,j}$ = {+1,0}，表示$U_i$和$U_j$组成的Pair的标签，即Ui相关性是否好于$U_j$。</p>
+
+<p>最终得到了可求导的度量损失函数</p>
+
+<script type="math/tex; mode=display">C=\frac{1}{2}(1-S_{i,j})\sigma (s_{i}-s{j})+log(1+e^{-\sigma (s_{i}-s_{j})})</script>
+
+<p>可以使用常规的梯度下降方法进行优化。细节见<a href="http://icml.cc/2015/wp-content/uploads/2015/06/icml_ranking.pdf">RankNet</a></p>
+
+<p>同时，得到文档$U_i$在排序优化过程的梯度信息为</p>
+
+<script type="math/tex; mode=display">\lambda _{i,j}=\frac{\partial C}{\partial s_{i}} = \frac{1}{2}(1-S_{i,j})-\frac{1}{1+e^{\sigma (s_{i}-s_{j})}}</script>
+
+<p>表示的含义是本轮排序优化过程中文档$U_i$的上升或者下降量。</p>
+
+<p>根据以上推论构造RankNet网络结构，由若干层隐藏层和全连接层构成，如图所示，将文档特征使用隐藏层，全连接层逐层变换，完成了底层特征空间到高层特征空间的变换。其中docA和docB结构对称，分别输入到最终的RankCost层中。</p>
+
+<p align="center">
+<img src="images/ranknet.jpg" width="50%" /><br />
+图3. RankNet网络结构示意图
+</p>
+
+<ul>
+  <li>全连接层(fully connected layer) : 指上一层中的每个节点都连接到下层网络。本例子中同样使用<code class="highlighter-rouge">paddle.layer.fc</code>实现，注意输入到RankCost层的全连接层维度为1。</li>
+  <li>RankCost层： RankCost层是排序网络RankNet的核心，度量docA相关性是否比docB好，给出预测值并和label比较。使用了交叉熵(cross enctropy)作为度量损失函数，使用梯度下降方法进行优化。细节可见<a href="http://icml.cc/2015/wp-content/uploads/2015/06/icml_ranking.pdf">RankNet</a>[4]。</li>
+</ul>
+
+<p>由于Pairwise中的网络结构是左右对称，可定义一半网络结构，另一半共享网络参数。在PaddlePaddle中允许网络结构中共享连接，具有相同名字的参数将会共享参数。使用PaddlePaddle实现RankNet排序模型，定义网络结构的示例代码如下：</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">paddle.v2</span> <span class="kn">as</span> <span class="nn">paddle</span>
+
+<span class="k">def</span> <span class="nf">half_ranknet</span><span class="p">(</span><span class="n">name_prefix</span><span class="p">,</span> <span class="n">input_dim</span><span class="p">):</span>
+  <span class="s">"""
+  parameter with a same name will be shared in PaddlePaddle framework,
+  these parameters in ranknet can be used in shared state, e.g. left network and right network in detail
+  https://github.com/PaddlePaddle/Paddle/blob/develop/doc/design/api.md
+  """</span>
+  <span class="c"># data layer</span>
+  <span class="n">data</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">name_prefix</span><span class="o">+</span><span class="s">"/data"</span><span class="p">,</span> <span class="n">paddle</span><span class="o">.</span><span class="n">data_type</span><span class="o">.</span><span class="n">dense_vector</span><span class="p">(</span><span class="n">input_dim</span><span class="p">))</span>
+
+  <span class="c"># fully connect layer</span>
+  <span class="n">hd1</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span>
+    <span class="nb">input</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
+    <span class="n">size</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">act</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">activation</span><span class="o">.</span><span class="n">Tanh</span><span class="p">(),</span>
+    <span class="n">param_attr</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">attr</span><span class="o">.</span><span class="n">Param</span><span class="p">(</span><span class="n">initial_std</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">"hidden_w1"</span><span class="p">))</span>
+  <span class="c"># fully connected layer/ output layer</span>
+  <span class="n">output</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span>
+    <span class="nb">input</span><span class="o">=</span><span class="n">hd1</span><span class="p">,</span>
+    <span class="n">size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">act</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">activation</span><span class="o">.</span><span class="n">Linear</span><span class="p">(),</span>
+    <span class="n">param_attr</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">attr</span><span class="o">.</span><span class="n">Param</span><span class="p">(</span><span class="n">initial_std</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">"output"</span><span class="p">))</span>
+  <span class="k">return</span> <span class="n">output</span>
+
+<span class="k">def</span> <span class="nf">ranknet</span><span class="p">(</span><span class="n">input_dim</span><span class="p">):</span>
+  <span class="c"># label layer</span>
+  <span class="n">label</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="s">"label"</span><span class="p">,</span> <span class="n">paddle</span><span class="o">.</span><span class="n">data_type</span><span class="o">.</span><span class="n">integer_value</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+
+  <span class="c"># reuse the parameter in half_ranknet</span>
+  <span class="n">output_left</span> <span class="o">=</span> <span class="n">half_ranknet</span><span class="p">(</span><span class="s">"left"</span><span class="p">,</span> <span class="n">input_dim</span><span class="p">)</span>  
+  <span class="n">output_right</span> <span class="o">=</span> <span class="n">half_ranknet</span><span class="p">(</span><span class="s">"right"</span><span class="p">,</span> <span class="n">input_dim</span><span class="p">)</span>
+
+  <span class="c"># rankcost layer</span>
+  <span class="n">cost</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">rank_cost</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">"cost"</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="n">output_left</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="n">output_right</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">cost</span>
+</code></pre>
+</div>
+
+<p>上述结构中使用了和图3相同的模型结构：两层隐藏层，分别是<code class="highlighter-rouge">hidden_size=10</code>的全连接层和<code class="highlighter-rouge">hidden_size=1</code>的全连接层。本例中的input_dim指输入<strong>单个文档</strong>的特征的维度，label取值为1，0。每条输入样本为<code class="highlighter-rouge">&lt;label&gt;，&lt;docA, docB&gt;</code>的结构，以docA为例，输入<code class="highlighter-rouge">input_dim</code>的文档特征，依次变换成10维，1维特征，最终输入到RankCost层中，比较docA和docB在RankCost输出得到预测值。</p>
+
+<h3 id="ranknet模型训练">RankNet模型训练</h3>
+
+<p>RankNet的训练只需要运行命令：</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">python</span> <span class="n">ranknet</span><span class="o">.</span><span class="n">py</span>
+</code></pre>
+</div>
+<p>将会自动下载数据，训练RankNet模型，并将每个轮次的模型参数存储下来。</p>
+
+<h3 id="ranknet模型预测">RankNet模型预测</h3>
+
+<p>本例提供了rankNet模型的训练和预测两个部分。完成训练后的模型分为拓扑结构(需要注意<code class="highlighter-rouge">rank_cost</code>不是模型拓扑结构的一部分)和模型参数文件两部分。在本例子中复用了<code class="highlighter-rouge">ranknet</code>训练时的模型拓扑结构<code class="highlighter-rouge">half_ranknet</code>，模型参数从外存中加载。模型预测的输入为单个文档的特征向量，模型会给出相关性得分。将预测得分排序即可得到最终的文档相关性排序结果。</p>
+
+<h2 id="用户自定义ranknet数据">用户自定义RankNet数据</h2>
+
+<p>上述的代码使用了PaddlePaddle内置的排序数据，如果希望使用自定义格式数据，可以参考PaddlePaddle内置的<code class="highlighter-rouge">mq2007</code>数据集，编写一个新的生成器函数。例如输入数据为如下格式，只包含doc0-doc2三个文档。</p>
+
+<p>&lt;query_id&gt; &lt;relevance_score&gt; &lt;feature_vector&gt;的格式(featureid: feature_value)</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>query_id : 1, relevance_score:1, feature_vector 0:0.1, 1:0.2, 2:0.4  #doc0
+query_id : 1, relevance_score:2, feature_vector 0:0.3, 1:0.1, 2:0.4  #doc1
+query_id : 1, relevance_score:0, feature_vector 0:0.2, 1:0.4, 2:0.1  #doc2
+query_id : 2, relevance_score:0, feature_vector 0:0.1, 1:0.4, 2:0.1  #doc0
+.....
+</code></pre>
+</div>
+
+<p>需要将输入样本转换为Pairwise的输入格式，例如组合生成格式与mq2007 Pairwise格式相同的结构</p>
+
+<p>&lt;label&gt; &lt;docA_feature_vector&gt;&lt;docB_feature_vector&gt;</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>1 doc1 doc0
+1 doc1 doc2
+1 doc0 doc2
+....
+</code></pre>
+</div>
+
+<p>注意，一般在Pairwise格式的数据中，label=1表示docA和查询的相关性好于docB，事实上label信息隐含在docA和docB组合pair中。如果存在<code class="highlighter-rouge">0 docA docB</code>，交换顺序构造<code class="highlighter-rouge">1 docB docA</code>即可。</p>
+
+<p>另外组合所有的pair会有训练数据冗余，因为可以从部分偏序关系恢复文档集上的全序关系。相关研究见<a href="http://www.machinelearning.org/proceedings/icml2007/papers/139.pdf">PairWise approach</a>[<a href="#参考文献5">5</a>]，本例不予赘述。</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="c"># a customized data generator</span>
+<span class="k">def</span> <span class="nf">gen_pairwise_data</span><span class="p">(</span><span class="n">text_line_of_data</span><span class="p">):</span>
+    <span class="s">"""
+      return :
+      ------
+      label : np.array, shape=(1)
+      docA_feature_vector : np.array, shape=(1, feature_dimension)
+      docA_feature_vector : np.array, shape=(1, feature_dimension)
+    """</span>
+    <span class="k">return</span> <span class="n">label</span><span class="p">,</span> <span class="n">docA_feature_vector</span><span class="p">,</span> <span class="n">docB_feature_vector</span>
+</code></pre>
+</div>
+
+<p>对应于paddle的输入中，<code class="highlighter-rouge">integer_value</code>为单个整数，<code class="highlighter-rouge">dense_vector</code>为实数一维向量，与生成器对应，需要在训练模型之前指明输入数据对应关系。</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="c"># Define the input data order</span>
+<span class="n">feeding</span> <span class="o">=</span> <span class="p">{</span> <span class="s">"label"</span><span class="p">:</span><span class="mi">0</span><span class="p">,</span>
+            <span class="s">"left/data"</span> <span class="p">:</span><span class="mi">1</span><span class="p">,</span>
+            <span class="s">"right/data"</span><span class="p">:</span><span class="mi">2</span><span class="p">}</span>
+</code></pre>
+</div>
+
+<h2 id="lambdarank排序模型">LambdaRank排序模型</h2>
+
+<p><a href="https://papers.nips.cc/paper/2971-learning-to-rank-with-nonsmooth-cost-functions.pdf">LambdaRank</a>[<a href="#参考文献">6</a>)]是Listwise的排序方法，是Bugers[6]等人从RankNet发展而来，使用构造lambda函数(LambdaRank名字的由来)的方法优化度量标准NDCG(Normalized Discounted Cumulative Gain)，每个查询后得到的结果文档列表都单独作为一个训练样本。NDCG是信息论中很衡量文档列表排序质量的标准之一，前$K$个文档的NDCG得分记做</p>
+
+<script type="math/tex; mode=display">NDCG@K=Z_{k}\sum (2^{rel_{i}})1/log(k+1)</script>
+
+<table>
+  <tbody>
+    <tr>
+      <td>前文中RankNet中推导出，文档排序需要的是排序错误的梯度信息。NDCG度量函数是非光滑，非连续的，不能直接求得梯度信息，因此将</td>
+      <td>delta(NDCG)</td>
+      <td>=</td>
+      <td>NDCG(new) - NDCG(old)</td>
+      <td>引入，构造lambda函数为</td>
+    </tr>
+  </tbody>
+</table>
+
+<script type="math/tex; mode=display">\lambda _{i,j}=\frac{\partial C}{\partial s_{i}}=-\frac{\sigma }{1+e^{\sigma (s_{i}-s{j})}}|\Delta NDCG|</script>
+
+<p>替换RankNet中的梯度表示，得到的排序模型称为<a href="https://papers.nips.cc/paper/2971-learning-to-rank-with-nonsmooth-cost-functions.pdf">LambdaRank</a></p>
+
+<p>由以上推导可知，LambdaRank网络结构和RankNet结构非常相似。如图所示</p>
+
+<p align="center">
+<img src="images/lambdarank.jpg" width="50%" /><br />
+图4. LambdaRank的网络结构示意图
+</p>
+
+<p>一个查询得到的结果文档列表作为一条样本输入到网络中，替换RankCost为LambdaCost层，其他结构与RankNet相同。</p>
+
+<ul>
+  <li>LambdaCost层 : LambdaCost层使用NDCG差值作为Lambda函数，score是一个一维的序列，对于单调训练样本全连接层输出的是1x1的序列，二者的序列长度都等于该条查询得到的文档数量。Lambda函数的构造详细见<a href="https://papers.nips.cc/paper/2971-learning-to-rank-with-nonsmooth-cost-functions.pdf">LambdaRank</a></li>
+</ul>
+
+<p>使用PaddlePaddle定义LambdaRank网络结构的示例代码如下：</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">paddle.v2</span> <span class="kn">as</span> <span class="nn">paddle</span>
+<span class="k">def</span> <span class="nf">lambda_rank</span><span class="p">(</span><span class="n">input_dim</span><span class="p">):</span>
+    <span class="s">"""
+    lambda_rank is a ListWise Rank Model, input data and label must be sequence
+    https://papers.nips.cc/paper/2971-learning-to-rank-with-nonsmooth-cost-functions.pdf
+    parameters :
+      input_dim, one document's dense feature vector dimension
+
+    dense_vector_sequence format
+    [[f, ...], [f, ...], ...], f is represent for an float or int number
+    """</span>
+    <span class="n">label</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="s">"label"</span><span class="p">,</span>
+                              <span class="n">paddle</span><span class="o">.</span><span class="n">data_type</span><span class="o">.</span><span class="n">dense_vector_sequence</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="s">"data"</span><span class="p">,</span>
+                             <span class="n">paddle</span><span class="o">.</span><span class="n">data_type</span><span class="o">.</span><span class="n">dense_vector_sequence</span><span class="p">(</span><span class="n">input_dim</span><span class="p">))</span>
+
+    <span class="c"># hidden layer</span>
+    <span class="n">hd1</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span>
+        <span class="nb">input</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
+        <span class="n">size</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+        <span class="n">act</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">activation</span><span class="o">.</span><span class="n">Tanh</span><span class="p">(),</span>
+        <span class="n">param_attr</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">attr</span><span class="o">.</span><span class="n">Param</span><span class="p">(</span><span class="n">initial_std</span><span class="o">=</span><span class="mf">0.01</span><span class="p">))</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span>
+        <span class="nb">input</span><span class="o">=</span><span class="n">hd1</span><span class="p">,</span>
+        <span class="n">size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">act</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">activation</span><span class="o">.</span><span class="n">Linear</span><span class="p">(),</span>
+        <span class="n">param_attr</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">attr</span><span class="o">.</span><span class="n">Param</span><span class="p">(</span><span class="n">initial_std</span><span class="o">=</span><span class="mf">0.01</span><span class="p">))</span>
+    <span class="c"># cost layer</span>
+    <span class="n">cost</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">lambda_cost</span><span class="p">(</span>
+        <span class="nb">input</span><span class="o">=</span><span class="n">output</span><span class="p">,</span> <span class="n">score</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">NDCG_num</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">max_sort_size</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">cost</span><span class="p">,</span> <span class="n">output</span>
+</code></pre>
+</div>
+
+<p>上述结构中使用了和图3相同的模型结构。和RankNet相似，分别使用了<code class="highlighter-rouge">hidden_size=10</code>和<code class="highlighter-rouge">hidden_size=1</code>的两个全连接层。本例中的input_dim指输入<strong>单个文档</strong>的特征的维度。每条输入样本为label，&lt;docA, docB&gt;的结构，以docA为例，输入input_dim的文档特征，依次变换成10维，1维特征，最终输入到LambdaCost层中。需要注意这里的label和data格式为<strong>dense_vector_sequence</strong>，表示一列文档得分或者文档特征组成的<strong>序列</strong>。</p>
+
+<h3 id="lambdarank模型训练">LambdaRank模型训练</h3>
+
+<p>训练LambdaRank模型只需要运行命令：</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">python</span> <span class="n">lambda_rank</span><span class="o">.</span><span class="n">py</span>
+</code></pre>
+</div>
+
+<p>脚本会自动下载数据，训练LambdaRank模型，并将每个轮次的模型存储下来。</p>
+
+<h3 id="lambdarank模型预测">LambdaRank模型预测</h3>
+
+<p>LambdaRank模型预测过程和RankNet相同。预测时的模型拓扑结构复用代码中的模型定义，从外存加载对应的参数文件。预测时的输入是文档列表，输出是该文档列表的各个文档相关性打分，根据打分对文档进行重新排序，即可得到最终的文档排序结果。</p>
+
+<h2 id="自定义lambdarank数据">自定义 LambdaRank数据</h2>
+
+<p>上面的代码使用了PaddlePaddle内置的mq2007数据，如果希望使用自定义格式数据，可以参考PaddlePaddle内置的<code class="highlighter-rouge">mq2007</code>数据集，编写一个生成器函数。例如输入数据为如下格式，只包含doc0-doc2三个文档。</p>
+
+<p>&lt;query_id&gt; &lt;relevance_score&gt; &lt;feature_vector&gt;的格式</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>query_id : 1, relevance_score:1, feature_vector 0:0.1, 1:0.2, 2:0.4  #doc0
+query_id : 1, relevance_score:2, feature_vector 0:0.3, 1:0.1, 2:0.4  #doc1
+query_id : 1, relevance_score:0, feature_vector 0:0.2, 1:0.4, 2:0.1  #doc2
+query_id : 2, relevance_score:0, feature_vector 0:0.1, 1:0.4, 2:0.1  #doc0
+query_id : 2, relevance_score:2, feature_vector 0:0.1, 1:0.4, 2:0.1  #doc1
+.....
+</code></pre>
+</div>
+
+<p>需要转换为Listwise格式，例如</p>
+
+<query_id><relevance_score> <feature_vector>
+
+```tex
+1    1    0.1,0.2,0.4
+1    2    0.3,0.1,0.4
+1    0    0.2,0.4,0.1
+
+2    0    0.1,0.4,0.1
+2    2    0.1,0.4,0.1
+......
+```
+
+**数据格式注意**
+
+- 数据中每条样本对应的文档数量都必须大于`lambda_cost`层的NDCG_num
+- 若单条样本对应的文档都为0，文档相关性都为0，NDCG计算无效，那么可以判定该query无效，我们在训练中过滤掉了这样的query。
+
+```python
+# self define data generator
+def gen_listwise_data(text_all_lines_of_data):
+    """
+    return :
+    ------
+    label : np.array, shape=(samples_num, )
+    querylist : np.array, shape=(samples_num, feature_dimension)
+    """
+    return label_list, query_docs_feature_vector_matrix
+```
+
+对应于PaddlePaddle输入，`label`的类型为`dense_vector_sequence`，是得分的序列，`data`的类型为`dense_vector_sequence`，是特征向量的序列输入，`input_dim`为单个文档的一维特征向量维度，与生成器对应，需要在训练模型之前指明输入数据对应关系。
+
+```python
+# Define the input data order
+feeding = {"label":0,
+           "data" : 1}
+```
+
+## 总结
+
+LTR在实际生活中有着广泛的应用。排序模型构造方法一般可划分为PointWise方法，Pairwise方法，Listwise方法，本例以LETOR的mq2007数据为例子，阐述了Pairwise的经典方法RankNet和Listwise方法中的LambdaRank，展示如何使用PaddlePaddle框架构造对应的排序模型结构，并提供了自定义数据类型样例。PaddlePaddle提供了灵活的编程接口，并可以使用一套代码运行在单机单GPU和多机分布式多GPU下实现LTR类型任务。
+
+## 参考文献
+
+1. https://en.wikipedia.org/wiki/Learning_to_rank
+2. Liu T Y. [Learning to rank for information retrieval](http://ftp.nowpublishers.com/article/DownloadSummary/INR-016)[J]. Foundations and Trends® in Information Retrieval, 2009, 3(3): 225-331.
+3. Li H. [Learning to rank for information retrieval and natural language processing](http://www.morganclaypool.com/doi/abs/10.2200/S00607ED2V01Y201410HLT026)[J]. Synthesis Lectures on Human Language Technologies, 2014, 7(3): 1-121.
+4. Burges C, Shaked T, Renshaw E, et al. [Learning to rank using gradient descent](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2005_BurgesSRLDHH05.pdf)[C]//Proceedings of the 22nd international conference on Machine learning. ACM, 2005: 89-96.
+5. Cao Z, Qin T, Liu T Y, et al. [Learning to rank: from pairwise approach to listwise approach](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2007_CaoQLTL07.pdf)[C]//Proceedings of the 24th international conference on Machine learning. ACM, 2007: 129-136.
+6. Burges C J C, Ragno R, Le Q V. [Learning to rank with nonsmooth cost functions](https://papers.nips.cc/paper/2971-learning-to-rank-with-nonsmooth-cost-functions.pdf)[C]//NIPS. 2006, 6: 193-200.
+</feature_vector></relevance_score></query_id>
+
+  </div>
+
+  
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">PaddlePaddle Model Zoo</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li>
+            
+              PaddlePaddle Model Zoo
+            
+            </li>
+            
+            <li><a href="mailto:idl-paddle@baidu.com">idl-paddle@baidu.com</a></li>
+            
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/baidu"><span class="icon icon--github"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/></svg>
+</span><span class="username">baidu</span></a>
+
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/PaddlePaddle"><span class="icon icon--twitter"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/></svg>
+</span><span class="username">PaddlePaddle</span></a>
+
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Write an awesome description for your new site here. You can edit this line in _config.yml. It will appear in your document head meta (for Google search results) and in your feed.xml site description.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>
