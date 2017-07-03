@@ -155,15 +155,16 @@ pre {
  * Site header
  */
 .site-header {
-  border-top: 5px solid #424242;
   border-bottom: 1px solid #e8e8e8;
   min-height: 55.95px;
   position: relative; }
 
 .site-title {
-  font-size: 26px;
-  font-weight: 300;
-  line-height: 54px;
+  font-size: 40px;
+  font-weight: 600;
+  color: #64B1D3;
+  font-family: "Chalkboard SE", "Ayuthaya", "Courier";
+  line-height: 78px;
   letter-spacing: -1px;
   margin-bottom: 0;
   float: left; }
@@ -221,12 +222,28 @@ pre {
         .site-nav .page-link:not(:last-child) {
           margin-right: 0; } }
 
+.site-header {
+  background: #F0F8FB; }
+
+.site-title a {
+  color: #64B1D3; }
+
+.site-title a:hover {
+  text-decoration: none; }
+
 /**
  * Site footer
  */
 .site-footer {
   border-top: 1px solid #e8e8e8;
-  padding: 30px 0; }
+  padding: 30px 0;
+  background: #F0F8FB; }
+
+.site-footer a {
+  color: #64B1D3; }
+
+.site-footer a:hover {
+  text-decoration: none; }
 
 .footer-heading {
   font-size: 18px;
@@ -327,6 +344,26 @@ pre {
     @media screen and (max-width: 800px) {
       .post-content h4 {
         font-size: 18px; } }
+
+.site-title, .site-title:visited, .site-title:hover {
+  color: #64B1D3;
+  text-decoration: none; }
+
+.wrapper .home a, .wrapper .home a:hover {
+  color: #64B1D3;
+  decoration: none; }
+
+.page-content {
+  padding: 5px 0; }
+
+.page-content .wrapper {
+  background-color: #FFF;
+  padding-top: 25px;
+  padding-bottom: 10px;
+  border: 1px solid #eee; }
+
+body {
+  background: #fafafa; }
 
 /**
  * Syntax highlighting styles
