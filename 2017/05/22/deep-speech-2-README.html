@@ -148,9 +148,28 @@ cd ..
 </code></pre>
 </div>
 
-<h3 id="inferencing">Inferencing</h3>
+<h3 id="preparing-language-model">Preparing language model</h3>
+
+<p>The following steps, inference, parameters tuning and evaluating, will require a language model during decoding.
+A compressed language model is provided and can be accessed by</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>cd ./lm
+sh run.sh
+cd ..
+</code></pre>
+</div>
+
+<h3 id="inference">Inference</h3>
+
+<p>For GPU inference</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>CUDA_VISIBLE_DEVICES=0 python infer.py
+</code></pre>
+</div>
+
+<p>For CPU inference</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>python infer.py --use_gpu=False
 </code></pre>
 </div>
 
@@ -174,9 +193,17 @@ cd ..
 
 <h3 id="parameters-tuning">Parameters tuning</h3>
 
-<p>Parameters tuning for the CTC beam search decoder</p>
+<p>Usually, the parameters $\alpha$ and $\beta$ for the CTC <a href="https://arxiv.org/abs/1408.2873">prefix beam search</a> decoder need to be tuned after retraining the acoustic model.</p>
+
+<p>For GPU tuning</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>CUDA_VISIBLE_DEVICES=0 python tune.py
+</code></pre>
+</div>
+
+<p>For CPU tuning</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>python tune.py --use_gpu=False
 </code></pre>
 </div>
 
@@ -185,6 +212,8 @@ cd ..
 <div class="highlighter-rouge"><pre class="highlight"><code>python tune.py --help
 </code></pre>
 </div>
+
+<p>Then reset parameters with the tuning result before inference or evaluating.</p>
 
   </div>
 
