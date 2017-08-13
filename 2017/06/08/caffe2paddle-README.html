@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/assets/main.css">
   <link rel="canonical" href="http://models.paddlepaddle.org/2017/06/08/caffe2paddle-README.html">
   <link rel="alternate" type="application/rss+xml" title="PaddlePaddle Model Zoo" href="/feed.xml">
+  <link rel="stylesheet" href="/assets/github-markdown.css">
   
   
 </head>
@@ -20,13 +21,15 @@
   <body>
 
     <header class="site-header" role="banner">
+  <a class="site-title" href="/">
+    <img src="/images/logo.png"/>
+    <span style="padding-top: 7px;">Blog</span>
+  </a>
 
   <div class="wrapper">
     
     
-    <a class="site-title" href="/" style="font-size:33px;">PaddlePaddle Model Zoo</a>
   
-    
       <nav class="site-nav">
         <input type="checkbox" id="nav-trigger" class="nav-trigger" />
         <label for="nav-trigger">
@@ -40,11 +43,16 @@
         </label>
 
         <div class="trigger">
-          <a class="page-link" href="https://github.com/PaddlePaddle/models" style="color:#828282;font-weight:bold;">github</a>
-          <a class="page-link" href="https://www.paddlepaddle.org" style="color:#828282; font-weight:bold;">PaddlePaddle</a>
+            <a class="page-link" href="http://www.paddlepaddle.org">Home</a>
+            <a class="page-link active" href="http://models.paddlepaddle.org">Models</a>
+            <a class="page-link" href="http://blog.paddlepaddle.org">Blog</a>
+            <!-- <a class="page-link" href="http://blog.paddlepaddle.org">Wiki</a> -->
+            <a class="page-link" href="https://github.com/PaddlePaddle/Paddle">
+              <img src="/images/github.png" style="height: 15px;"/>
+              Github</a>
         </div>
       </nav>
-    
+
   </div>
 </header>
 
@@ -63,7 +71,8 @@
       </p>
   </header>
 
-  <div class="post-content" itemprop="articleBody">
+  <!-- <div class="post-content" itemprop="articleBody">-->
+  <div class="markdown-body" itemprop="articleBody">
     <h2 id="使用说明">使用说明</h2>
 
 <p><code class="highlighter-rouge">caffe2paddle.py</code>提供了将Caffe训练的模型转换为PaddlePaddle可使用的模型的接口<code class="highlighter-rouge">ModelConverter</code>，其封装了图像领域常用的Convolution、BatchNorm等layer的转换函数，可以完成VGG、ResNet等常用模型的转换。模型转换的基本过程是：基于Caffe的Python API加载模型并依次获取每一个layer的信息，将其中的参数根据layer类型与PaddlePaddle适配后序列化保存（对于Pooling等无需训练的layer不做处理），输出可以直接为PaddlePaddle的Python API加载使用的模型文件。</p>
@@ -164,31 +173,5 @@
 
 
   </body>
-
- <!-- Baidu Analystics -->
-    <script>
-        var _hmt = _hmt || [];
-        (function() {
-            var hm = document.createElement("script");
-            hm.src = "//hm.baidu.com/hm.js?b9a314ab40d04d805655aab1deee08ba";
-            var s = document.getElementsByTagName("script")[0];
-            s.parentNode.insertBefore(hm, s);
-        })();
-    </script>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
-
-	<script type="text/x-mathjax-config">
-		MathJax.Hub.Config({
-			extensions: ["tex2jax.js"],
-			jax: ["input/TeX", "output/HTML-CSS"],
-			tex2jax: {
-				inlineMath: [ ['$','$'], ["\\(","\\)"] ],
-				displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
-				processEscapes: true
-			},
-			"HTML-CSS": { availableFonts: ["TeX"] }
-		});
-	</script>
 
 </html>

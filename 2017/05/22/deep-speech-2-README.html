@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/assets/main.css">
   <link rel="canonical" href="http://models.paddlepaddle.org/2017/05/22/deep-speech-2-README.html">
   <link rel="alternate" type="application/rss+xml" title="PaddlePaddle Model Zoo" href="/feed.xml">
+  <link rel="stylesheet" href="/assets/github-markdown.css">
   
   
 </head>
@@ -20,13 +21,15 @@
   <body>
 
     <header class="site-header" role="banner">
+  <a class="site-title" href="/">
+    <img src="/images/logo.png"/>
+    <span style="padding-top: 7px;">Blog</span>
+  </a>
 
   <div class="wrapper">
     
     
-    <a class="site-title" href="/" style="font-size:33px;">PaddlePaddle Model Zoo</a>
   
-    
       <nav class="site-nav">
         <input type="checkbox" id="nav-trigger" class="nav-trigger" />
         <label for="nav-trigger">
@@ -40,11 +43,16 @@
         </label>
 
         <div class="trigger">
-          <a class="page-link" href="https://github.com/PaddlePaddle/models" style="color:#828282;font-weight:bold;">github</a>
-          <a class="page-link" href="https://www.paddlepaddle.org" style="color:#828282; font-weight:bold;">PaddlePaddle</a>
+            <a class="page-link" href="http://www.paddlepaddle.org">Home</a>
+            <a class="page-link active" href="http://models.paddlepaddle.org">Models</a>
+            <a class="page-link" href="http://blog.paddlepaddle.org">Blog</a>
+            <!-- <a class="page-link" href="http://blog.paddlepaddle.org">Wiki</a> -->
+            <a class="page-link" href="https://github.com/PaddlePaddle/Paddle">
+              <img src="/images/github.png" style="height: 15px;"/>
+              Github</a>
         </div>
       </nav>
-    
+
   </div>
 </header>
 
@@ -63,7 +71,8 @@
       </p>
   </header>
 
-  <div class="post-content" itemprop="articleBody">
+  <!-- <div class="post-content" itemprop="articleBody">-->
+  <div class="markdown-body" itemprop="articleBody">
     <h1 id="deep-speech-2-on-paddlepaddle">Deep Speech 2 on PaddlePaddle</h1>
 
 <h2 id="installation">Installation</h2>
@@ -131,28 +140,9 @@ cd ..
 </code></pre>
 </div>
 
-<h3 id="preparing-language-model">Preparing language model</h3>
-
-<p>The following steps, inference, parameters tuning and evaluating, will require a language model during decoding.
-A compressed language model is provided and can be accessed by</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>cd ./lm
-sh run.sh
-cd ..
-</code></pre>
-</div>
-
-<h3 id="inference">Inference</h3>
-
-<p>For GPU inference</p>
+<h3 id="inferencing">Inferencing</h3>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>CUDA_VISIBLE_DEVICES=0 python infer.py
-</code></pre>
-</div>
-
-<p>For CPU inference</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>python infer.py --use_gpu=False
 </code></pre>
 </div>
 
@@ -161,42 +151,6 @@ cd ..
 <div class="highlighter-rouge"><pre class="highlight"><code>python infer.py --help
 </code></pre>
 </div>
-
-<h3 id="evaluating">Evaluating</h3>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>CUDA_VISIBLE_DEVICES=0 python evaluate.py
-</code></pre>
-</div>
-
-<p>More help for arguments:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>python evaluate.py --help
-</code></pre>
-</div>
-
-<h3 id="parameters-tuning">Parameters tuning</h3>
-
-<p>Usually, the parameters $\alpha$ and $\beta$ for the CTC <a href="https://arxiv.org/abs/1408.2873">prefix beam search</a> decoder need to be tuned after retraining the acoustic model.</p>
-
-<p>For GPU tuning</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>CUDA_VISIBLE_DEVICES=0 python tune.py
-</code></pre>
-</div>
-
-<p>For CPU tuning</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>python tune.py --use_gpu=False
-</code></pre>
-</div>
-
-<p>More help for arguments:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>python tune.py --help
-</code></pre>
-</div>
-
-<p>Then reset parameters with the tuning result before inference or evaluating.</p>
 
   </div>
 
@@ -258,31 +212,5 @@ cd ..
 
 
   </body>
-
- <!-- Baidu Analystics -->
-    <script>
-        var _hmt = _hmt || [];
-        (function() {
-            var hm = document.createElement("script");
-            hm.src = "//hm.baidu.com/hm.js?b9a314ab40d04d805655aab1deee08ba";
-            var s = document.getElementsByTagName("script")[0];
-            s.parentNode.insertBefore(hm, s);
-        })();
-    </script>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
-
-	<script type="text/x-mathjax-config">
-		MathJax.Hub.Config({
-			extensions: ["tex2jax.js"],
-			jax: ["input/TeX", "output/HTML-CSS"],
-			tex2jax: {
-				inlineMath: [ ['$','$'], ["\\(","\\)"] ],
-				displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
-				processEscapes: true
-			},
-			"HTML-CSS": { availableFonts: ["TeX"] }
-		});
-	</script>
 
 </html>

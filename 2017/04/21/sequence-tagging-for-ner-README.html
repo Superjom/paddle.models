@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/assets/main.css">
   <link rel="canonical" href="http://models.paddlepaddle.org/2017/04/21/sequence-tagging-for-ner-README.html">
   <link rel="alternate" type="application/rss+xml" title="PaddlePaddle Model Zoo" href="/feed.xml">
+  <link rel="stylesheet" href="/assets/github-markdown.css">
   
   
 </head>
@@ -20,13 +21,15 @@
   <body>
 
     <header class="site-header" role="banner">
+  <a class="site-title" href="/">
+    <img src="/images/logo.png"/>
+    <span style="padding-top: 7px;">Blog</span>
+  </a>
 
   <div class="wrapper">
     
     
-    <a class="site-title" href="/" style="font-size:33px;">PaddlePaddle Model Zoo</a>
   
-    
       <nav class="site-nav">
         <input type="checkbox" id="nav-trigger" class="nav-trigger" />
         <label for="nav-trigger">
@@ -40,11 +43,16 @@
         </label>
 
         <div class="trigger">
-          <a class="page-link" href="https://github.com/PaddlePaddle/models" style="color:#828282;font-weight:bold;">github</a>
-          <a class="page-link" href="https://www.paddlepaddle.org" style="color:#828282; font-weight:bold;">PaddlePaddle</a>
+            <a class="page-link" href="http://www.paddlepaddle.org">Home</a>
+            <a class="page-link active" href="http://models.paddlepaddle.org">Models</a>
+            <a class="page-link" href="http://blog.paddlepaddle.org">Blog</a>
+            <!-- <a class="page-link" href="http://blog.paddlepaddle.org">Wiki</a> -->
+            <a class="page-link" href="https://github.com/PaddlePaddle/Paddle">
+              <img src="/images/github.png" style="height: 15px;"/>
+              Github</a>
         </div>
       </nav>
-    
+
   </div>
 </header>
 
@@ -63,7 +71,8 @@
       </p>
   </header>
 
-  <div class="post-content" itemprop="articleBody">
+  <!-- <div class="post-content" itemprop="articleBody">-->
+  <div class="markdown-body" itemprop="articleBody">
     <h1 id="命名实体识别">命名实体识别</h1>
 
 <p>以下是本例的简要目录结构及说明：</p>
@@ -88,10 +97,10 @@
 
 <p>序列标注可以分为Sequence Classification、Segment Classification和Temporal Classification三类[<a href="#参考文献">1</a>]，本例只考虑Segment Classification，即对输入序列中的每个元素在输出序列中给出对应的标签。对于NER任务，由于需要标识边界，一般采用<a href="http://book.paddlepaddle.org/07.label_semantic_roles/">BIO标注方法</a>定义的标签集，如下是一个NER的标注结果示例：</p>
 
-<p align="center">
-<img src="images/ner_label_ins.png" width="80%" align="center" /><br />
+<div align="center">
+&lt;img src="images/ner_label_ins.png" width = "80%"  align=center /&gt;<br />
 图1. BIO标注方法示例
-</p>
+</div>
 
 <p>根据序列标注结果可以直接得到实体边界和实体类别。类似的，分词、词性标注、语块识别、<a href="http://book.paddlepaddle.org/07.label_semantic_roles/index.cn.html">语义角色标注</a>等任务都可通过序列标注来解决。使用神经网络模型解决问题的思路通常是：前层网络学习输入的特征表示，网络的最后一层在特征基础上完成最终的任务；对于序列标注问题，通常：使用基于RNN的网络结构学习特征，将学习到的特征接入CRF完成序列标注。实际上是将传统CRF中的线性模型换成了非线性神经网络。沿用CRF的出发点是：CRF使用句子级别的似然概率，能够更好的解决标记偏置问题[<a href="#参考文献">2</a>]。本例也将基于此思路建立模型。虽然，这里以NER任务作为示例，但所给出的模型可以应用到其他各种序列标注任务中。</p>
 
@@ -113,10 +122,10 @@
   <li>CRF以步骤3中模型学习到的特征为输入，以标记序列为监督信号，实现序列标注。</li>
 </ol>
 
-<p align="center">
-<img src="images/ner_network.png" width="40%" align="center" /><br />
+<div align="center">  
+&lt;img src="images/ner_network.png" width = "40%"  align=center /&gt;<br />
 图2. NER 模型网络结构图
-</p>
+</div>
 
 <h2 id="数据说明">数据说明</h2>
 
@@ -359,31 +368,5 @@ Baghdad      NNP  I-NP  I-LOC
 
 
   </body>
-
- <!-- Baidu Analystics -->
-    <script>
-        var _hmt = _hmt || [];
-        (function() {
-            var hm = document.createElement("script");
-            hm.src = "//hm.baidu.com/hm.js?b9a314ab40d04d805655aab1deee08ba";
-            var s = document.getElementsByTagName("script")[0];
-            s.parentNode.insertBefore(hm, s);
-        })();
-    </script>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
-
-	<script type="text/x-mathjax-config">
-		MathJax.Hub.Config({
-			extensions: ["tex2jax.js"],
-			jax: ["input/TeX", "output/HTML-CSS"],
-			tex2jax: {
-				inlineMath: [ ['$','$'], ["\\(","\\)"] ],
-				displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
-				processEscapes: true
-			},
-			"HTML-CSS": { availableFonts: ["TeX"] }
-		});
-	</script>
 
 </html>

@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/assets/main.css">
   <link rel="canonical" href="http://models.paddlepaddle.org/2017/04/21/ltr-README.html">
   <link rel="alternate" type="application/rss+xml" title="PaddlePaddle Model Zoo" href="/feed.xml">
+  <link rel="stylesheet" href="/assets/github-markdown.css">
   
   
 </head>
@@ -20,13 +21,15 @@
   <body>
 
     <header class="site-header" role="banner">
+  <a class="site-title" href="/">
+    <img src="/images/logo.png"/>
+    <span style="padding-top: 7px;">Blog</span>
+  </a>
 
   <div class="wrapper">
     
     
-    <a class="site-title" href="/" style="font-size:33px;">PaddlePaddle Model Zoo</a>
   
-    
       <nav class="site-nav">
         <input type="checkbox" id="nav-trigger" class="nav-trigger" />
         <label for="nav-trigger">
@@ -40,11 +43,16 @@
         </label>
 
         <div class="trigger">
-          <a class="page-link" href="https://github.com/PaddlePaddle/models" style="color:#828282;font-weight:bold;">github</a>
-          <a class="page-link" href="https://www.paddlepaddle.org" style="color:#828282; font-weight:bold;">PaddlePaddle</a>
+            <a class="page-link" href="http://www.paddlepaddle.org">Home</a>
+            <a class="page-link active" href="http://models.paddlepaddle.org">Models</a>
+            <a class="page-link" href="http://blog.paddlepaddle.org">Blog</a>
+            <!-- <a class="page-link" href="http://blog.paddlepaddle.org">Wiki</a> -->
+            <a class="page-link" href="https://github.com/PaddlePaddle/Paddle">
+              <img src="/images/github.png" style="height: 15px;"/>
+              Github</a>
         </div>
       </nav>
-    
+
   </div>
 </header>
 
@@ -63,7 +71,8 @@
       </p>
   </header>
 
-  <div class="post-content" itemprop="articleBody">
+  <!-- <div class="post-content" itemprop="articleBody">-->
+  <div class="markdown-body" itemprop="articleBody">
     <h1 id="排序学习learning-to-rank">排序学习(Learning To Rank)</h1>
 
 <p>排序学习技术[<a href="#参考文献1">1</a>]是构建排序模型的机器学习方法，在信息检索、自然语言处理，数据挖掘等机器学场景中具有重要作用。排序学习的主要目的是对给定一组文档，对任意查询请求给出反映相关性的文档排序。在本例子中，利用标注过的语料库训练两种经典排序模型RankNet[<a href="#参考文献4">4</a>]和LamdaRank[<a href="#参考文献6">6</a>]，分别可以生成对应的排序模型，能够对任意查询请求，给出相关性文档排序。</p>
@@ -387,59 +396,56 @@ query_id : 2, relevance_score:2, feature_vector 0:0.1, 1:0.4, 2:0.1  #doc1
 
 <p>需要转换为Listwise格式，例如</p>
 
-<p><code class="highlighter-rouge">&lt;query_id&gt;&lt;relevance_score&gt; &lt;feature_vector&gt;</code></p>
+<query_id><relevance_score> <feature_vector>
 
-<div class="language-tex highlighter-rouge"><pre class="highlight"><code>1    1    0.1,0.2,0.4
+```tex
+1    1    0.1,0.2,0.4
 1    2    0.3,0.1,0.4
 1    0    0.2,0.4,0.1
 
 2    0    0.1,0.4,0.1
 2    2    0.1,0.4,0.1
 ......
-</code></pre>
-</div>
+```
 
-<p><strong>数据格式注意</strong></p>
+**数据格式注意**
 
-<ul>
-  <li>数据中每条样本对应的文档数量都必须大于<code class="highlighter-rouge">lambda_cost</code>层的NDCG_num</li>
-  <li>若单条样本对应的文档都为0，文档相关性都为0，NDCG计算无效，那么可以判定该query无效，我们在训练中过滤掉了这样的query。</li>
-</ul>
+- 数据中每条样本对应的文档数量都必须大于`lambda_cost`层的NDCG_num
+- 若单条样本对应的文档都为0，文档相关性都为0，NDCG计算无效，那么可以判定该query无效，我们在训练中过滤掉了这样的query。
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="c"># self define data generator</span>
-<span class="k">def</span> <span class="nf">gen_listwise_data</span><span class="p">(</span><span class="n">text_all_lines_of_data</span><span class="p">):</span>
-    <span class="s">"""
+```python
+# self define data generator
+def gen_listwise_data(text_all_lines_of_data):
+    """
     return :
     ------
     label : np.array, shape=(samples_num, )
     querylist : np.array, shape=(samples_num, feature_dimension)
-    """</span>
-    <span class="k">return</span> <span class="n">label_list</span><span class="p">,</span> <span class="n">query_docs_feature_vector_matrix</span>
-</code></pre>
-</div>
+    """
+    return label_list, query_docs_feature_vector_matrix
+```
 
-<p>对应于PaddlePaddle输入，<code class="highlighter-rouge">label</code>的类型为<code class="highlighter-rouge">dense_vector_sequence</code>，是得分的序列，<code class="highlighter-rouge">data</code>的类型为<code class="highlighter-rouge">dense_vector_sequence</code>，是特征向量的序列输入，<code class="highlighter-rouge">input_dim</code>为单个文档的一维特征向量维度，与生成器对应，需要在训练模型之前指明输入数据对应关系。</p>
+对应于PaddlePaddle输入，`label`的类型为`dense_vector_sequence`，是得分的序列，`data`的类型为`dense_vector_sequence`，是特征向量的序列输入，`input_dim`为单个文档的一维特征向量维度，与生成器对应，需要在训练模型之前指明输入数据对应关系。
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="c"># Define the input data order</span>
-<span class="n">feeding</span> <span class="o">=</span> <span class="p">{</span><span class="s">"label"</span><span class="p">:</span><span class="mi">0</span><span class="p">,</span>
-           <span class="s">"data"</span> <span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
-</code></pre>
-</div>
+```python
+# Define the input data order
+feeding = {"label":0,
+           "data" : 1}
+```
 
-<h2 id="总结">总结</h2>
+## 总结
 
-<p>LTR在实际生活中有着广泛的应用。排序模型构造方法一般可划分为PointWise方法，Pairwise方法，Listwise方法，本例以LETOR的mq2007数据为例子，阐述了Pairwise的经典方法RankNet和Listwise方法中的LambdaRank，展示如何使用PaddlePaddle框架构造对应的排序模型结构，并提供了自定义数据类型样例。PaddlePaddle提供了灵活的编程接口，并可以使用一套代码运行在单机单GPU和多机分布式多GPU下实现LTR类型任务。</p>
+LTR在实际生活中有着广泛的应用。排序模型构造方法一般可划分为PointWise方法，Pairwise方法，Listwise方法，本例以LETOR的mq2007数据为例子，阐述了Pairwise的经典方法RankNet和Listwise方法中的LambdaRank，展示如何使用PaddlePaddle框架构造对应的排序模型结构，并提供了自定义数据类型样例。PaddlePaddle提供了灵活的编程接口，并可以使用一套代码运行在单机单GPU和多机分布式多GPU下实现LTR类型任务。
 
-<h2 id="参考文献">参考文献</h2>
+## 参考文献
 
-<ol>
-  <li>https://en.wikipedia.org/wiki/Learning_to_rank</li>
-  <li>Liu T Y. <a href="http://ftp.nowpublishers.com/article/DownloadSummary/INR-016">Learning to rank for information retrieval</a>[J]. Foundations and Trends® in Information Retrieval, 2009, 3(3): 225-331.</li>
-  <li>Li H. <a href="http://www.morganclaypool.com/doi/abs/10.2200/S00607ED2V01Y201410HLT026">Learning to rank for information retrieval and natural language processing</a>[J]. Synthesis Lectures on Human Language Technologies, 2014, 7(3): 1-121.</li>
-  <li>Burges C, Shaked T, Renshaw E, et al. <a href="http://machinelearning.wustl.edu/mlpapers/paper_files/icml2005_BurgesSRLDHH05.pdf">Learning to rank using gradient descent</a>[C]//Proceedings of the 22nd international conference on Machine learning. ACM, 2005: 89-96.</li>
-  <li>Cao Z, Qin T, Liu T Y, et al. <a href="http://machinelearning.wustl.edu/mlpapers/paper_files/icml2007_CaoQLTL07.pdf">Learning to rank: from pairwise approach to listwise approach</a>[C]//Proceedings of the 24th international conference on Machine learning. ACM, 2007: 129-136.</li>
-  <li>Burges C J C, Ragno R, Le Q V. <a href="https://papers.nips.cc/paper/2971-learning-to-rank-with-nonsmooth-cost-functions.pdf">Learning to rank with nonsmooth cost functions</a>[C]//NIPS. 2006, 6: 193-200.</li>
-</ol>
+1. https://en.wikipedia.org/wiki/Learning_to_rank
+2. Liu T Y. [Learning to rank for information retrieval](http://ftp.nowpublishers.com/article/DownloadSummary/INR-016)[J]. Foundations and Trends® in Information Retrieval, 2009, 3(3): 225-331.
+3. Li H. [Learning to rank for information retrieval and natural language processing](http://www.morganclaypool.com/doi/abs/10.2200/S00607ED2V01Y201410HLT026)[J]. Synthesis Lectures on Human Language Technologies, 2014, 7(3): 1-121.
+4. Burges C, Shaked T, Renshaw E, et al. [Learning to rank using gradient descent](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2005_BurgesSRLDHH05.pdf)[C]//Proceedings of the 22nd international conference on Machine learning. ACM, 2005: 89-96.
+5. Cao Z, Qin T, Liu T Y, et al. [Learning to rank: from pairwise approach to listwise approach](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2007_CaoQLTL07.pdf)[C]//Proceedings of the 24th international conference on Machine learning. ACM, 2007: 129-136.
+6. Burges C J C, Ragno R, Le Q V. [Learning to rank with nonsmooth cost functions](https://papers.nips.cc/paper/2971-learning-to-rank-with-nonsmooth-cost-functions.pdf)[C]//NIPS. 2006, 6: 193-200.
+</feature_vector></relevance_score></query_id>
 
   </div>
 
@@ -501,31 +507,5 @@ query_id : 2, relevance_score:2, feature_vector 0:0.1, 1:0.4, 2:0.1  #doc1
 
 
   </body>
-
- <!-- Baidu Analystics -->
-    <script>
-        var _hmt = _hmt || [];
-        (function() {
-            var hm = document.createElement("script");
-            hm.src = "//hm.baidu.com/hm.js?b9a314ab40d04d805655aab1deee08ba";
-            var s = document.getElementsByTagName("script")[0];
-            s.parentNode.insertBefore(hm, s);
-        })();
-    </script>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
-
-	<script type="text/x-mathjax-config">
-		MathJax.Hub.Config({
-			extensions: ["tex2jax.js"],
-			jax: ["input/TeX", "output/HTML-CSS"],
-			tex2jax: {
-				inlineMath: [ ['$','$'], ["\\(","\\)"] ],
-				displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
-				processEscapes: true
-			},
-			"HTML-CSS": { availableFonts: ["TeX"] }
-		});
-	</script>
 
 </html>
