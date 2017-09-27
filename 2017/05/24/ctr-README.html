@@ -6,11 +6,11 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title> 点击率预估</title>
-  <meta name="description" content="点击率预估">
+  <title> Click-Through Rate Prediction</title>
+  <meta name="description" content="Click-Through Rate Prediction">
 
   <link rel="stylesheet" href="/assets/main.css">
-  <link rel="canonical" href="http://models.paddlepaddle.org/2017/05/24/ctr-README.html">
+  <link rel="canonical" href="http://localhost:4000/2017/05/24/ctr-README.html">
   <link rel="alternate" type="application/rss+xml" title="PaddlePaddle Model Zoo" href="/feed.xml">
   <link rel="stylesheet" href="/assets/github-markdown.css">
   
@@ -62,9 +62,9 @@
         <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
 
   <header class="post-header">
-    <h1 class="post-title" itemprop="name headline"> 点击率预估</h1>
+    <h1 class="post-title" itemprop="name headline"> Click-Through Rate Prediction</h1>
     <p class="post-meta">
-      <time datetime="2017-05-24T00:00:00+08:00" itemprop="datePublished">
+      <time datetime="2017-05-24T00:00:00-07:00" itemprop="datePublished">
         
         May 24, 2017
       </time>
@@ -73,228 +73,268 @@
 
   <!-- <div class="post-content" itemprop="articleBody">-->
   <div class="markdown-body" itemprop="articleBody">
-    <h1 id="点击率预估">点击率预估</h1>
+    <h1 id="click-through-rate-prediction">Click-Through Rate Prediction</h1>
 
-<h2 id="背景介绍">背景介绍</h2>
+<h2 id="introduction">Introduction</h2>
 
-<p>CTR(Click-Through Rate，点击率预估)[<a href="https://en.wikipedia.org/wiki/Click-through_rate">1</a>] 是用来表示用户点击一个特定链接的概率，
-通常被用来衡量一个在线广告系统的有效性。</p>
+<p>CTR(Click-Through Rate)[<a href="https://en.wikipedia.org/wiki/Click-through_rate">1</a>]
+is a prediction of the probability that a user clicks on an advertisement. This model is widely used in the advertisement industry. Accurate click rate estimates are important for maximizing online advertising revenue.</p>
 
-<p>当有多个广告位时，CTR 预估一般会作为排序的基准。
-比如在搜索引擎的广告系统里，当用户输入一个带商业价值的搜索词（query）时，系统大体上会执行下列步骤来展示广告：</p>
+<p>When there are multiple ad slots, CTR estimates are generally used as a baseline for ranking. For example, in a search engine’s ad system, when the user enters a query, the system typically performs the following steps to show relevant ads.</p>
 
 <ol>
-  <li>召回满足 query 的广告集合</li>
-  <li>业务规则和相关性过滤</li>
-  <li>根据拍卖机制和 CTR 排序</li>
-  <li>展出广告</li>
+  <li>Get the ad collection associated with the user’s search term.</li>
+  <li>Business rules and relevance filtering.</li>
+  <li>Rank by auction mechanism and CTR.</li>
+  <li>Show ads.</li>
 </ol>
 
-<p>可以看到，CTR 在最终排序中起到了很重要的作用。</p>
+<p>Here，CTR plays a crucial role.</p>
 
-<h3 id="发展阶段">发展阶段</h3>
-<p>在业内，CTR 模型经历了如下的发展阶段：</p>
+<h3 id="brief-history">Brief history</h3>
+<p>Historically, the CTR prediction model has been evolving as follows.</p>
 
 <ul>
-  <li>Logistic Regression(LR) / GBDT + 特征工程</li>
-  <li>LR + DNN 特征</li>
-  <li>DNN + 特征工程</li>
+  <li>Logistic Regression(LR) / Gradient Boosting Decision Trees (GBDT) + feature engineering</li>
+  <li>LR + Deep Neural Network (DNN)</li>
+  <li>DNN + feature engineering</li>
 </ul>
 
-<p>在发展早期时 LR 一统天下，但最近 DNN 模型由于其强大的学习能力和逐渐成熟的性能优化，
-逐渐地接过 CTR 预估任务的大旗。</p>
+<p>In the early stages of development LR dominated, but the recent years DNN based models are mainly used.</p>
 
 <h3 id="lr-vs-dnn">LR vs DNN</h3>
 
-<p>下图展示了 LR 和一个 (3x2) 的 DNN 模型的结构：</p>
+<p>The following figure shows the structure of LR and DNN model:</p>
 
 <p align="center">
 <img src="images/lr_vs_dnn.jpg" width="620" hspace="10" /> <br />
-Figure 1. LR 和 DNN 模型结构对比
+Figure 1.  LR and DNN model structure comparison
 </p>
 
-<p>LR 的蓝色箭头部分可以直接类比到 DNN 中对应的结构，可以看到 LR 和 DNN 有一些共通之处（比如权重累加），
-但前者的模型复杂度在相同输入维度下比后者可能低很多（从某方面讲，模型越复杂，越有潜力学习到更复杂的信息）。</p>
+<p>We can see, LR and CNN have some common structures. However, DNN can have non-linear relation between input and output values by adding activation unit and further layers. This enables DNN to achieve better learning results in CTR estimates.</p>
 
-<p>如果 LR 要达到匹敌 DNN 的学习能力，必须增加输入的维度，也就是增加特征的数量，
-这也就是为何 LR 和大规模的特征工程必须绑定在一起的原因。</p>
+<p>In the following, we demonstrate how to use PaddlePaddle to learn to predict CTR.</p>
 
-<p>LR 对于 DNN 模型的优势是对大规模稀疏特征的容纳能力，包括内存和计算量等方面，工业界都有非常成熟的优化方法。</p>
+<h2 id="data-and-model-formation">Data and Model formation</h2>
 
-<p>而 DNN 模型具有自己学习新特征的能力，一定程度上能够提升特征使用的效率，
-这使得 DNN 模型在同样规模特征的情况下，更有可能达到更好的学习效果。</p>
-
-<p>本文后面的章节会演示如何使用 PaddlePaddle 编写一个结合两者优点的模型。</p>
-
-<h2 id="数据和任务抽象">数据和任务抽象</h2>
-
-<p>我们可以将 <code class="highlighter-rouge">click</code> 作为学习目标，任务可以有以下几种方案：</p>
+<p>Here <code class="highlighter-rouge">click</code> is the learning objective. There are several ways to learn the objectives.</p>
 
 <ol>
-  <li>直接学习 click，0,1 作二元分类</li>
-  <li>Learning to rank, 具体用 pairwise rank（标签 1&gt;0）或者 listwise rank</li>
-  <li>统计每个广告的点击率，将同一个 query 下的广告两两组合，点击率高的&gt;点击率低的，做 rank 或者分类</li>
+  <li>Direct learning click, 0,1 for binary classification</li>
+  <li>Learning to rank, pairwise rank or listwise rank</li>
+  <li>Measure the ad click rate of each ad, then rank by the click rate.</li>
 </ol>
 
-<p>我们直接使用第一种方法做分类任务。</p>
+<p>In this example, we use the first method.</p>
 
-<p>我们使用 Kaggle 上 <code class="highlighter-rouge">Click-through rate prediction</code> 任务的数据集[<a href="https://www.kaggle.com/c/avazu-ctr-prediction/data">2</a>] 来演示模型。</p>
+<p>We use the Kaggle <code class="highlighter-rouge">Click-through rate prediction</code> task [<a href="https://www.kaggle.com/c/avazu-ctr-prediction/data">2</a>].</p>
 
-<p>具体的特征处理方法参看 <a href="./dataset.md">data process</a></p>
+<p>Please see the <a href="./dataset.md">data process</a> for pre-processing data.</p>
 
-<h2 id="wide--deep-learning-model">Wide &amp; Deep Learning Model</h2>
+<p>The input data format for the demo model in this tutorial is as follows:</p>
 
-<p>谷歌在 16 年提出了 Wide &amp; Deep Learning 的模型框架，用于融合适合学习抽象特征的 DNN 和 适用于大规模稀疏特征的 LR 两种模型的优点。</p>
+<div class="highlighter-rouge"><pre class="highlight"><code># &lt;dnn input ids&gt; \t &lt;lr input sparse values&gt; \t click
+1 23 190 \t 230:0.12 3421:0.9 23451:0.12 \t 0
+23 231 \t 1230:0.12 13421:0.9 \t 1
+</code></pre>
+</div>
 
-<h3 id="模型简介">模型简介</h3>
+<p>Description：</p>
 
-<p>Wide &amp; Deep Learning Model[<a href="#参考文献">3</a>] 可以作为一种相对成熟的模型框架使用，
-在 CTR 预估的任务中工业界也有一定的应用，因此本文将演示使用此模型来完成 CTR 预估的任务。</p>
+<ul>
+  <li><code class="highlighter-rouge">dnn input ids</code> one-hot coding.</li>
+  <li><code class="highlighter-rouge">lr input sparse values</code> Use <code class="highlighter-rouge">ID:VALUE</code> , values are preferaly scaled to the range <code class="highlighter-rouge">[-1, 1]</code>。</li>
+</ul>
 
-<p>模型结构如下：</p>
+<p>此外，模型训练时需要传入一个文件描述 dnn 和 lr两个子模型的输入维度，文件的格式如下：</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>dnn_input_dim: &lt;int&gt;
+lr_input_dim: &lt;int&gt;
+</code></pre>
+</div>
+
+<int> represents an integer value.
+
+`avazu_data_processor.py` can be used to download the data set \[[2](#参考文档)\]and pre-process the data.
+
+```
+usage: avazu_data_processer.py [-h] --data_path DATA_PATH --output_dir
+                               OUTPUT_DIR
+                               [--num_lines_to_detect NUM_LINES_TO_DETECT]
+                               [--test_set_size TEST_SET_SIZE]
+                               [--train_size TRAIN_SIZE]
+
+PaddlePaddle CTR example
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --data_path DATA_PATH
+                        path of the Avazu dataset
+  --output_dir OUTPUT_DIR
+                        directory to output
+  --num_lines_to_detect NUM_LINES_TO_DETECT
+                        number of records to detect dataset's meta info
+  --test_set_size TEST_SET_SIZE
+                        size of the validation dataset(default: 10000)
+  --train_size TRAIN_SIZE
+                        size of the trainset (default: 100000)
+```
+
+- `data_path` The data path to be processed
+- `output_dir` The output path of the data
+- `num_lines_to_detect` The number of generated IDs
+- `test_set_size` The number of rows for the test set
+- `train_size` The number of rows of training set
+
+## Wide &amp; Deep Learning Model
+
+Google proposed a model framework for Wide &amp; Deep Learning to integrate the advantages of both DNNs suitable for learning abstract features and LR models for large sparse features.
+
+
+### Introduction to the model
+
+Wide &amp; Deep Learning Model\[[3](#References)\] is a relatively mature model, but this model is still being used in the CTR predicting task. Here we demonstrate the use of this model to complete the CTR predicting task.
+
+The model structure is as follows:
 
 <p align="center">
 <img src="images/wide_deep.png" width="820" hspace="10" /> <br />
 Figure 2. Wide &amp; Deep Model
 </p>
 
-<p>模型左边的 Wide 部分，可以容纳大规模系数特征，并且对一些特定的信息（比如 ID）有一定的记忆能力；
-而模型右边的 Deep 部分，能够学习特征间的隐含关系，在相同数量的特征下有更好的学习和推导能力。</p>
-
-<h3 id="编写模型输入">编写模型输入</h3>
-
-<p>模型只接受 3 个输入，分别是</p>
-
-<ul>
-  <li><code class="highlighter-rouge">dnn_input</code> ，也就是 Deep 部分的输入</li>
-  <li><code class="highlighter-rouge">lr_input</code> ，也就是 Wide 部分的输入</li>
-  <li><code class="highlighter-rouge">click</code> ， 点击与否，作为二分类模型学习的标签</li>
-</ul>
-
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">dnn_merged_input</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">data</span><span class="p">(</span>
-    <span class="n">name</span><span class="o">=</span><span class="s">'dnn_input'</span><span class="p">,</span>
-    <span class="nb">type</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">data_type</span><span class="o">.</span><span class="n">sparse_binary_vector</span><span class="p">(</span><span class="n">data_meta_info</span><span class="p">[</span><span class="s">'dnn_input'</span><span class="p">]))</span>
-
-<span class="n">lr_merged_input</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">data</span><span class="p">(</span>
-    <span class="n">name</span><span class="o">=</span><span class="s">'lr_input'</span><span class="p">,</span>
-    <span class="nb">type</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">data_type</span><span class="o">.</span><span class="n">sparse_binary_vector</span><span class="p">(</span><span class="n">data_meta_info</span><span class="p">[</span><span class="s">'lr_input'</span><span class="p">]))</span>
-
-<span class="n">click</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">'click'</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">dtype</span><span class="o">.</span><span class="n">dense_vector</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
-</code></pre>
-</div>
-
-<h3 id="编写-wide-部分">编写 Wide 部分</h3>
-
-<p>Wide 部分直接使用了 LR 模型，但激活函数改成了 <code class="highlighter-rouge">RELU</code> 来加速</p>
-
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="nf">build_lr_submodel</span><span class="p">():</span>
-    <span class="n">fc</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span>
-        <span class="nb">input</span><span class="o">=</span><span class="n">lr_merged_input</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">'lr'</span><span class="p">,</span> <span class="n">act</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">activation</span><span class="o">.</span><span class="n">Relu</span><span class="p">())</span>
-    <span class="k">return</span> <span class="n">fc</span>
-</code></pre>
-</div>
-
-<h3 id="编写-deep-部分">编写 Deep 部分</h3>
-
-<p>Deep 部分使用了标准的多层前向传导的 DNN 模型</p>
-
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="nf">build_dnn_submodel</span><span class="p">(</span><span class="n">dnn_layer_dims</span><span class="p">):</span>
-    <span class="n">dnn_embedding</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="n">dnn_merged_input</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">dnn_layer_dims</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-    <span class="n">_input_layer</span> <span class="o">=</span> <span class="n">dnn_embedding</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dim</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dnn_layer_dims</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
-        <span class="n">fc</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span>
-            <span class="nb">input</span><span class="o">=</span><span class="n">_input_layer</span><span class="p">,</span>
-            <span class="n">size</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
-            <span class="n">act</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">activation</span><span class="o">.</span><span class="n">Relu</span><span class="p">(),</span>
-            <span class="n">name</span><span class="o">=</span><span class="s">'dnn-fc-</span><span class="si">%</span><span class="s">d'</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
-        <span class="n">_input_layer</span> <span class="o">=</span> <span class="n">fc</span>
-    <span class="k">return</span> <span class="n">_input_layer</span>
-</code></pre>
-</div>
-
-<h3 id="两者融合">两者融合</h3>
-
-<p>两个 submodel 的最上层输出加权求和得到整个模型的输出，输出部分使用 <code class="highlighter-rouge">sigmoid</code> 作为激活函数，得到区间 (0,1) 的预测值，
-来逼近训练数据中二元类别的分布，并最终作为 CTR 预估的值使用。</p>
-
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="c"># conbine DNN and LR submodels</span>
-<span class="k">def</span> <span class="nf">combine_submodels</span><span class="p">(</span><span class="n">dnn</span><span class="p">,</span> <span class="n">lr</span><span class="p">):</span>
-    <span class="n">merge_layer</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="p">[</span><span class="n">dnn</span><span class="p">,</span> <span class="n">lr</span><span class="p">])</span>
-    <span class="n">fc</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span>
-        <span class="nb">input</span><span class="o">=</span><span class="n">merge_layer</span><span class="p">,</span>
-        <span class="n">size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-        <span class="n">name</span><span class="o">=</span><span class="s">'output'</span><span class="p">,</span>
-        <span class="c"># use sigmoid function to approximate ctr, wihch is a float value between 0 and 1.</span>
-        <span class="n">act</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">activation</span><span class="o">.</span><span class="n">Sigmoid</span><span class="p">())</span>
-    <span class="k">return</span> <span class="n">fc</span>
-</code></pre>
-</div>
-
-<h3 id="训练任务的定义">训练任务的定义</h3>
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">dnn</span> <span class="o">=</span> <span class="n">build_dnn_submodel</span><span class="p">(</span><span class="n">dnn_layer_dims</span><span class="p">)</span>
-<span class="n">lr</span> <span class="o">=</span> <span class="n">build_lr_submodel</span><span class="p">()</span>
-<span class="n">output</span> <span class="o">=</span> <span class="n">combine_submodels</span><span class="p">(</span><span class="n">dnn</span><span class="p">,</span> <span class="n">lr</span><span class="p">)</span>
-
-<span class="c"># ==============================================================================</span>
-<span class="c">#                   cost and train period</span>
-<span class="c"># ==============================================================================</span>
-<span class="n">classification_cost</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">multi_binary_label_cross_entropy_cost</span><span class="p">(</span>
-    <span class="nb">input</span><span class="o">=</span><span class="n">output</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">click</span><span class="p">)</span>
+The wide part of the left side of the model can accommodate large-scale coefficient features and has some memory for some specific information (such as ID); and the Deep part of the right side of the model can learn the implicit relationship between features.
 
 
-<span class="n">paddle</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">use_gpu</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">trainer_count</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>
+### Model Input
 
-<span class="n">params</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">classification_cost</span><span class="p">)</span>
+The model has three inputs as follows.
 
-<span class="n">optimizer</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">optimizer</span><span class="o">.</span><span class="n">Momentum</span><span class="p">(</span><span class="n">momentum</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+-   `dnn_input` ，the Deep part of the input
+-   `lr_input` ，the wide part of the input
+-   `click` ， click on or not
 
-<span class="n">trainer</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">trainer</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span>
-    <span class="n">cost</span><span class="o">=</span><span class="n">classification_cost</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">update_equation</span><span class="o">=</span><span class="n">optimizer</span><span class="p">)</span>
+```python
+dnn_merged_input = layer.data(
+    name='dnn_input',
+    type=paddle.data_type.sparse_binary_vector(data_meta_info['dnn_input']))
 
-<span class="n">dataset</span> <span class="o">=</span> <span class="n">AvazuDataset</span><span class="p">(</span><span class="n">train_data_path</span><span class="p">,</span> <span class="n">n_records_as_test</span><span class="o">=</span><span class="n">test_set_size</span><span class="p">)</span>
+lr_merged_input = layer.data(
+    name='lr_input',
+    type=paddle.data_type.sparse_binary_vector(data_meta_info['lr_input']))
 
-<span class="k">def</span> <span class="nf">event_handler</span><span class="p">(</span><span class="n">event</span><span class="p">):</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">paddle</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">EndIteration</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">batch_id</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">"Pass </span><span class="si">%</span><span class="s">d, Samples </span><span class="si">%</span><span class="s">d, Cost </span><span class="si">%</span><span class="s">f"</span> <span class="o">%</span> <span class="p">(</span>
-                <span class="n">event</span><span class="o">.</span><span class="n">pass_id</span><span class="p">,</span> <span class="n">event</span><span class="o">.</span><span class="n">batch_id</span> <span class="o">*</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">event</span><span class="o">.</span><span class="n">cost</span><span class="p">))</span>
+click = paddle.layer.data(name='click', type=dtype.dense_vector(1))
+```
 
-        <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">batch_id</span> <span class="o">%</span> <span class="mi">1000</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">test</span><span class="p">(</span>
-                <span class="n">reader</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">test</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">),</span>
-                <span class="n">feeding</span><span class="o">=</span><span class="n">field_index</span><span class="p">)</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">"Test </span><span class="si">%</span><span class="s">d-</span><span class="si">%</span><span class="s">d, Cost </span><span class="si">%</span><span class="s">f"</span> <span class="o">%</span> <span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">pass_id</span><span class="p">,</span> <span class="n">event</span><span class="o">.</span><span class="n">batch_id</span><span class="p">,</span>
-                                           <span class="n">result</span><span class="o">.</span><span class="n">cost</span><span class="p">))</span>
+### Wide part
+
+Wide part uses of the LR model, but the activation function changed to `RELU` for speed.
+
+```python
+def build_lr_submodel():
+    fc = layer.fc(
+        input=lr_merged_input, size=1, name='lr', act=paddle.activation.Relu())
+    return fc
+```
+
+### Deep part
+
+The Deep part uses a standard multi-layer DNN.
+
+```python
+def build_dnn_submodel(dnn_layer_dims):
+    dnn_embedding = layer.fc(input=dnn_merged_input, size=dnn_layer_dims[0])
+    _input_layer = dnn_embedding
+    for i, dim in enumerate(dnn_layer_dims[1:]):
+        fc = layer.fc(
+            input=_input_layer,
+            size=dim,
+            act=paddle.activation.Relu(),
+            name='dnn-fc-%d' % i)
+        _input_layer = fc
+    return _input_layer
+```
+
+### Combine
+
+The output section uses `sigmoid` function to output (0,1) as the prediction value.
+
+```python
+# conbine DNN and LR submodels
+def combine_submodels(dnn, lr):
+    merge_layer = layer.concat(input=[dnn, lr])
+    fc = layer.fc(
+        input=merge_layer,
+        size=1,
+        name='output',
+        # use sigmoid function to approximate ctr, wihch is a float value between 0 and 1.
+        act=paddle.activation.Sigmoid())
+    return fc
+```
+
+### Training
+```python
+dnn = build_dnn_submodel(dnn_layer_dims)
+lr = build_lr_submodel()
+output = combine_submodels(dnn, lr)
+
+# ==============================================================================
+#                   cost and train period
+# ==============================================================================
+classification_cost = paddle.layer.multi_binary_label_cross_entropy_cost(
+    input=output, label=click)
 
 
-<span class="n">trainer</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
-    <span class="n">reader</span><span class="o">=</span><span class="n">paddle</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span>
-        <span class="n">paddle</span><span class="o">.</span><span class="n">reader</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">train</span><span class="p">,</span> <span class="n">buf_size</span><span class="o">=</span><span class="mi">500</span><span class="p">),</span>
-        <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">),</span>
-    <span class="n">feeding</span><span class="o">=</span><span class="n">field_index</span><span class="p">,</span>
-    <span class="n">event_handler</span><span class="o">=</span><span class="n">event_handler</span><span class="p">,</span>
-    <span class="n">num_passes</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
-</code></pre>
-</div>
-<h2 id="运行训练和测试">运行训练和测试</h2>
-<p>训练模型需要如下步骤：</p>
+paddle.init(use_gpu=False, trainer_count=11)
 
-<ol>
-  <li>下载训练数据，可以使用 Kaggle 上 CTR 比赛的数据[<a href="#参考文献">2</a>]
-    <ol>
-      <li>从 <a href="https://www.kaggle.com/c/avazu-ctr-prediction/data">Kaggle CTR</a> 下载 train.gz</li>
-      <li>解压 train.gz 得到 train.txt</li>
-    </ol>
-  </li>
-  <li>执行 <code class="highlighter-rouge">python train.py --train_data_path train.txt</code> ，开始训练</li>
-</ol>
+params = paddle.parameters.create(classification_cost)
 
-<p>上面第2个步骤可以为 <code class="highlighter-rouge">train.py</code> 填充命令行参数来定制模型的训练过程，具体的命令行参数及用法如下</p>
+optimizer = paddle.optimizer.Momentum(momentum=0)
 
-<div class="highlighter-rouge"><pre class="highlight"><code>usage: train.py [-h] --train_data_path TRAIN_DATA_PATH
-                [--batch_size BATCH_SIZE] [--test_set_size TEST_SET_SIZE]
+trainer = paddle.trainer.SGD(
+    cost=classification_cost, parameters=params, update_equation=optimizer)
+
+dataset = AvazuDataset(train_data_path, n_records_as_test=test_set_size)
+
+def event_handler(event):
+    if isinstance(event, paddle.event.EndIteration):
+        if event.batch_id % 100 == 0:
+            logging.warning("Pass %d, Samples %d, Cost %f" % (
+                event.pass_id, event.batch_id * batch_size, event.cost))
+
+        if event.batch_id % 1000 == 0:
+            result = trainer.test(
+                reader=paddle.batch(dataset.test, batch_size=1000),
+                feeding=field_index)
+            logging.warning("Test %d-%d, Cost %f" % (event.pass_id, event.batch_id,
+                                           result.cost))
+
+
+trainer.train(
+    reader=paddle.batch(
+        paddle.reader.shuffle(dataset.train, buf_size=500),
+        batch_size=batch_size),
+    feeding=field_index,
+    event_handler=event_handler,
+    num_passes=100)
+```
+
+## Run training and testing
+The model go through the following steps:
+
+1. Prepare training data
+    1. Download train.gz from [Kaggle CTR](https://www.kaggle.com/c/avazu-ctr-prediction/data) .
+    2. Unzip train.gz to get train.txt
+    3. `mkdir -p output; python avazu_data_processer.py --data_path train.txt --output_dir output --num_lines_to_detect 1000 --test_set_size 100` 生成演示数据
+2. Execute `python train.py --train_data_path ./output/train.txt --test_data_path ./output/test.txt --data_meta_file ./output/data.meta.txt --model_type=0`. Start training.
+
+The argument options for `train.py` are as follows.
+
+```
+usage: train.py [-h] --train_data_path TRAIN_DATA_PATH
+                [--test_data_path TEST_DATA_PATH] [--batch_size BATCH_SIZE]
                 [--num_passes NUM_PASSES]
-                [--num_lines_to_detact NUM_LINES_TO_DETACT]
+                [--model_output_prefix MODEL_OUTPUT_PREFIX] --data_meta_file
+                DATA_META_FILE --model_type MODEL_TYPE
 
 PaddlePaddle CTR example
 
@@ -302,23 +342,84 @@ optional arguments:
   -h, --help            show this help message and exit
   --train_data_path TRAIN_DATA_PATH
                         path of training dataset
+  --test_data_path TEST_DATA_PATH
+                        path of testing dataset
   --batch_size BATCH_SIZE
                         size of mini-batch (default:10000)
-  --test_set_size TEST_SET_SIZE
-                        size of the validation dataset(default: 10000)
   --num_passes NUM_PASSES
                         number of passes to train
-  --num_lines_to_detact NUM_LINES_TO_DETACT
-                        number of records to detect dataset's meta info
-</code></pre>
-</div>
+  --model_output_prefix MODEL_OUTPUT_PREFIX
+                        prefix of path for model to store (default:
+                        ./ctr_models)
+  --data_meta_file DATA_META_FILE
+                        path of data meta info file
+  --model_type MODEL_TYPE
+                        model type, classification: 0, regression 1 (default
+                        classification)
+```
 
-<h2 id="参考文献">参考文献</h2>
-<ol>
-  <li><a href="https://en.wikipedia.org/wiki/Click-through_rate">https://en.wikipedia.org/wiki/Click-through_rate</a></li>
-  <li><a href="https://www.kaggle.com/c/avazu-ctr-prediction/data">https://www.kaggle.com/c/avazu-ctr-prediction/data</a></li>
-  <li>Cheng H T, Koc L, Harmsen J, et al. <a href="https://arxiv.org/pdf/1606.07792.pdf">Wide &amp; deep learning for recommender systems</a>[C]//Proceedings of the 1st Workshop on Deep Learning for Recommender Systems. ACM, 2016: 7-10.</li>
-</ol>
+- `train_data_path` ：  The path of the training set
+- `test_data_path` : The path of the testing set
+- `num_passes`: number of rounds of model training
+- `data_meta_file`: Please refer to [数据和任务抽象](### 数据和任务抽象)的描述。
+- `model_type`:  Model classification or regressio
+
+
+## Use the training model for prediction
+The training model can be used to predict new data, and the format of the forecast data is as follows.
+
+
+```
+# <dnn input="" ids=""> \t <lr input="" sparse="" values="">
+1 23 190 \t 230:0.12 3421:0.9 23451:0.12
+23 231 \t 1230:0.12 13421:0.9
+```
+
+Here the only difference to the training data is that there is no label (i.e. `click` values).
+
+We now can use `infer.py` to perform inference.
+
+```
+usage: infer.py [-h] --model_gz_path MODEL_GZ_PATH --data_path DATA_PATH
+                --prediction_output_path PREDICTION_OUTPUT_PATH
+                [--data_meta_path DATA_META_PATH] --model_type MODEL_TYPE
+
+PaddlePaddle CTR example
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --model_gz_path MODEL_GZ_PATH
+                        path of model parameters gz file
+  --data_path DATA_PATH
+                        path of the dataset to infer
+  --prediction_output_path PREDICTION_OUTPUT_PATH
+                        path to output the prediction
+  --data_meta_path DATA_META_PATH
+                        path of trainset's meta info, default is ./data.meta
+  --model_type MODEL_TYPE
+                        model type, classification: 0, regression 1 (default
+                        classification)
+```
+
+- `model_gz_path_model`：path for `gz` compressed data.
+- `data_path` ：
+- `prediction_output_patj`：path for the predicted values s
+- `data_meta_file` ：Please refer to [数据和任务抽象](### 数据和任务抽象)。
+- `model_type` ：Classification or regression
+
+The sample data can be predicted with the following command
+
+```
+python infer.py --model_gz_path <model_path> --data_path output/infer.txt --prediction_output_path predictions.txt --data_meta_path data.meta.txt
+```
+
+The final prediction is written in  `predictions.txt`。
+
+## References
+1. &lt;https://en.wikipedia.org/wiki/Click-through_rate&gt;
+2. &lt;https://www.kaggle.com/c/avazu-ctr-prediction/data&gt;
+3. Cheng H T, Koc L, Harmsen J, et al. [Wide &amp; deep learning for recommender systems](https://arxiv.org/pdf/1606.07792.pdf)[C]//Proceedings of the 1st Workshop on Deep Learning for Recommender Systems. ACM, 2016: 7-10.
+</model_path></lr></dnn></int>
 
   </div>
 

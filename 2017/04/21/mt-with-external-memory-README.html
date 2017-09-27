@@ -1,1 +1,654 @@
-<p>TBD</p>
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title> 带外部记忆机制的神经机器翻译</title>
+  <meta name="description" content="带外部记忆机制的神经机器翻译">
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="canonical" href="http://localhost:4000/2017/04/21/mt-with-external-memory-README.html">
+  <link rel="alternate" type="application/rss+xml" title="PaddlePaddle Model Zoo" href="/feed.xml">
+  <link rel="stylesheet" href="/assets/github-markdown.css">
+  
+  
+</head>
+
+
+  <body>
+
+    <header class="site-header" role="banner">
+  <a class="site-title" href="/">
+    <img src="/images/logo.png"/>
+    <span style="padding-top: 7px;">Blog</span>
+  </a>
+
+  <div class="wrapper">
+    
+    
+  
+      <nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+              <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+              <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger">
+            <a class="page-link" href="http://www.paddlepaddle.org">Home</a>
+            <a class="page-link active" href="http://models.paddlepaddle.org">Models</a>
+            <a class="page-link" href="http://blog.paddlepaddle.org">Blog</a>
+            <!-- <a class="page-link" href="http://blog.paddlepaddle.org">Wiki</a> -->
+            <a class="page-link" href="https://github.com/PaddlePaddle/Paddle">
+              <img src="/images/github.png" style="height: 15px;"/>
+              Github</a>
+        </div>
+      </nav>
+
+  </div>
+</header>
+
+
+    <main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline"> 带外部记忆机制的神经机器翻译</h1>
+    <p class="post-meta">
+      <time datetime="2017-04-21T00:00:00-07:00" itemprop="datePublished">
+        
+        Apr 21, 2017
+      </time>
+      </p>
+  </header>
+
+  <!-- <div class="post-content" itemprop="articleBody">-->
+  <div class="markdown-body" itemprop="articleBody">
+    <h1 id="带外部记忆机制的神经机器翻译">带外部记忆机制的神经机器翻译</h1>
+
+<p>带<strong>外部记忆</strong>（External Memory）机制的神经机器翻译模型（Neural Machine Translation, NMT），是神经机器翻译模型的一个重要扩展。它引入可微分的记忆网络作为额外的记忆单元，拓展神经翻译模型内部工作记忆（Working Memory）的容量或带宽，辅助完成翻译等任务中信息的临时存取，改善模型表现。</p>
+
+<p>类似模型不仅可应用于翻译任务，同时可广泛应用于其他需 “大容量动态记忆” 的任务，例如：机器阅读理解 / 问答、多轮对话、长文本生成等。同时，“记忆” 作为认知的重要部分之一，可用于强化其他多种机器学习模型的表现。</p>
+
+<p>本文所采用的外部记忆机制，主要指<strong>神经图灵机</strong> [<a href="#参考文献">1</a>] 方式（将于后文详细描述）。值得一提的是，神经图灵机仅仅是神经网络模拟记忆机制的尝试之一。记忆机制长久以来被广泛研究，近年来在深度学习的背景下，涌现出一系列有价值的工作，例如记忆网络（Memory Networks）、可微分神经计算机（Differentiable Neural Computers, DNC）等。本文仅讨论和实现神经图灵机机制。</p>
+
+<p>本文的实现主要参考论文[<a href="#参考文献">2</a>]， 并假设读者已充分阅读并理解 PaddlePaddle Book 中 <a href="https://github.com/PaddlePaddle/book/tree/develop/08.machine_translation">机器翻译</a> 一章。</p>
+
+<h2 id="模型概述">模型概述</h2>
+
+<h3 id="记忆机制简介">记忆机制简介</h3>
+
+<p>记忆（Memory)，是认知的重要环节之一。记忆赋予认知在时间上的协调性，使得复杂认知（如推理、规划，不同于静态感知）成为可能。灵活的记忆机制，是机器模仿人类智能所需要拥有的关键能力之一。</p>
+
+<h4 id="静态记忆">静态记忆</h4>
+
+<p>任何机器学习模型，原生就拥有一定的静态记忆能力：无论它是参数模型（模型参数即记忆），还是非参模型（样本即记忆）；无论是传统的 SVM（支持向量即记忆），还是神经网络模型（网络连接权值即记忆）。然而，这里的 “记忆” 绝大部分是指<strong>静态记忆</strong>，即在模型训练结束后，“记忆” 是固化的；在模型推断时，模型是静态一致的，不拥有额外的跨时间步的信息记忆能力。</p>
+
+<h4 id="动态记忆-1--rnns-中的隐状态向量">动态记忆 1 — RNNs 中的隐状态向量</h4>
+
+<p>在处理序列认知问题（如自然语言处理、序列决策等）时，由于每个时间步对信息的处理需要依赖其他时间步的信息，我们往往需要在不同时间步上维持一个持久的信息通路。带有隐状态向量 $h$（或 LSTM 中的状态 $c$）的循环神经网络（Recurrent Neural Networks, RNNs） ，即拥有这样的 “<strong>动态记忆</strong>” 能力。每一个时间步，模型均可从 $h$ 或 $c$ 中获取过去时间步的 “记忆” 信息，并可往上持续叠加新的信息以更新记忆。在模型推断时，不同的样本具有完全不同的一组记忆信息（$h$ 或 $c$），具有 “动态” 性。</p>
+
+<p>尽管上述对 LSTM中细胞状态 $c$ 的直觉说法有着诸多不严谨之处：例如从优化的角度看， $c$ 的引入或者 GRU 中的线性 Leaky 结构的引入，是为了在梯度计算中使得单步梯度的雅克比矩阵的谱分布更接近单位阵，以减轻长程梯度衰减问题，降低优化难度。但这不妨碍我们从直觉的角度将它理解为增加 “线性通路” 使得 “记忆通道” 更顺畅，如图1（引自<a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/">此文</a>）所示的 LSTM 中的细胞状态向量 $c$ 可视为这样一个用于信息持久化的 “线性记忆通道”。</p>
+
+<div align="center">
+&lt;img src="image/lstm_c_state.png" width=700&gt;<br />
+图1. LSTM 中的细胞状态向量作为 “记忆通道” 示意图
+</div>
+
+<h4 id="动态记忆-2--seq2seq-中的注意力机制">动态记忆 2 — Seq2Seq 中的注意力机制</h4>
+
+<p>然而上节所述的单个向量 $h$ 或 $c$ 的信息带宽有限。在序列到序列生成模型中，这样的带宽瓶颈更表现在信息从编码器（Encoder）转移至解码器（Decoder）的过程中：仅仅依赖一个有限长度的状态向量来编码整个变长的源语句，有着较大的潜在信息丢失。</p>
+
+<p>[<a href="#参考文献">3</a>] 提出了注意力机制（Attention Mechanism），以克服上述困难。在解码时，解码器不再仅仅依赖来自编码器的唯一的句级编码向量的信息，而是依赖一个向量组的记忆信息：向量组中的每个向量为编码器的各字符（Token）的编码向量（例如 $h_t$）。通过一组可学习的注意强度（Attention Weights) 来动态分配注意力资源，以线性加权方式读取信息，用于序列的不同时间步的符号生成（可参考 PaddlePaddle Book <a href="https://github.com/PaddlePaddle/book/tree/develop/08.machine_translation">机器翻译</a>一章）。这种注意强度的分布，可看成基于内容的寻址（请参考神经图灵机 [<a href="#参考文献">1</a>] 中的寻址描述），即在源语句的不同位置根据其内容决定不同的读取强度，起到一种和源语句 “软对齐（Soft Alignment）” 的作用。</p>
+
+<p>相比上节的单个状态向量，这里的 “向量组” 蕴含着更多更精准的信息，例如它可以被认为是一个无界的外部记忆模块（Unbounded External Memory），有效拓宽记忆信息带宽。“无界” 指的是向量组的向量个数非固定，而是随着源语句的字符数的变化而变化，数量不受限。在源语句的编码完成时，该外部存储即被初始化为各字符的状态向量，而在其后的整个解码过程中被读取使用。</p>
+
+<h4 id="动态记忆-3--神经图灵机">动态记忆 3 — 神经图灵机</h4>
+
+<p>图灵机（Turing Machine）或冯诺依曼体系（Von Neumann Architecture），是计算机体系结构的雏形。运算器（如代数计算）、控制器（如逻辑分支控制）和存储器三者一体，共同构成了当代计算机的核心运行机制。神经图灵机（Neural Turing Machines）[<a href="#参考文献">1</a>] 试图利用神经网络模拟可微分（即可通过梯度下降来学习）的图灵机，以实现更复杂的智能。而一般的机器学习模型，大部分忽略了显式的动态存储。神经图灵机正是要弥补这样的潜在缺陷。</p>
+
+<div align="center">
+<img src="image/turing_machine_cartoon.gif" /><br />
+图2. 图灵机结构漫画
+</div>
+
+<p>图灵机的存储机制，常被形象比喻成在一个纸带（Tape）的读写操作。读头（Read Head）和 写头（Write Head）负责在纸带上读出或者写入信息；纸袋的移动、读写头的读写动作和内容，则受控制器 （Contoller) 控制（见图2，引自<a href="http://www.worldofcomputing.net/theory/turing-machine.html">此处</a>）；同时纸带的长度通常有限。</p>
+
+<p>神经图灵机则以矩阵 $M \in \mathcal{R}^{n \times m}$ 模拟 “纸带”，其中 $n$ 为记忆向量（又成记忆槽）的数量，$m$ 为记忆向量的长度。以前馈神经网络或循环神经网络来模拟控制器，决定本次读写在不同的记忆槽上的读写强度分布，即寻址：</p>
+
+<ul>
+  <li>基于内容的寻址（Content-based Addressing)：寻址强度依赖于记忆槽的内容和该次读写的实际内容；</li>
+  <li>基于位置的寻址(Location-based Addressing)：寻址强度依赖于上次寻址操作的寻址强度（例如偏移）；</li>
+  <li>混合寻址：混合上述寻址方式（例如线性插值）；</li>
+</ul>
+
+<p>（详情请参考论文[<a href="#参考文献">1</a>]）。根据寻址情况，图灵机写入 $M$ 或从 $M$ 读出信息，供其他网络使用。神经图灵机结构示意图，见图3，引自[<a href="#参考文献">1</a>]。</p>
+
+<div align="center">
+<img src="image/neural_turing_machine_arch.png" width="400" /><br />
+图3. 神经图灵机结构示意图
+</div>
+
+<p>和上节的注意力机制相比，神经图灵机有着诸多相同点和不同点。相同点例如：</p>
+
+<ul>
+  <li>均利用矩阵（或向量组）形式的外部存储。</li>
+  <li>均利用可微分的寻址方式。</li>
+</ul>
+
+<p>不同在于：</p>
+
+<ul>
+  <li>神经图灵机有读有写，是真正意义上的存储器；而注意力机制在编码完成时即初始化存储内容（仅简单缓存，非可微分的写操作），在其后的解码过程中只读不写。</li>
+  <li>神经图灵机不仅有基于内容的寻址，同时结合基于位置的寻址，使得例如 “序列复制” 等需 “连续寻址” 的任务更容易；而注意力机制仅考虑基于内容的寻址，以实现 Soft Aligment。</li>
+  <li>神经图灵机利用有界（Bounded) 存储；而注意力机制利用无界（Unbounded）存储。</li>
+</ul>
+
+<h4 id="三种记忆方式的混合以强化神经机器翻译模型">三种记忆方式的混合，以强化神经机器翻译模型</h4>
+
+<p>尽管在一般的序列到序列模型中，注意力机制已经是标配。然而，注意机制中的外部存储仅用于存储编码器信息。在解码器内部，信息通路仍依赖 RNN 的状态单向量 $h$ 或 $c$。于是，利用神经图灵机的外部存储机制，来补充解码器内部的单向量信息通路，成为自然而然的想法。</p>
+
+<p>于是，我们混合上述的三种动态记忆机制，即RNN 原有的状态向量、注意力机制被保留；同时，基于简化版的神经图灵机的有界外部记忆机制被引入以补充解码器单状态向量记忆。整体的模型实现参考论文[<a href="#参考文献">2</a>]。少量的实现差异，详见<a href="#其他讨论">其他讨论</a>一章。</p>
+
+<p>这里额外需要理解的是，为什么不直接通过增加 $h$ 或 $c$的维度来扩大信息带宽？</p>
+
+<ul>
+  <li>一方面因为通过增加 $h$ 或 $c$的维度是以 $O(n^2)$ 的存储和计算复杂度为代价（状态-状态转移矩阵）；而基于神经图灵机的记忆扩展代价是 $O(n)$的，因其寻址是以记忆槽（Memory Slot）为单位，而控制器的参数结构仅仅是和 $m$（记忆槽的大小）有关。</li>
+  <li>基于状态单向量的记忆读写机制，仅有唯一的读写强度，即本质上是<strong>全局</strong>的；而神经图灵机的机制是<strong>局部</strong>的，即读写本质上仅在部分记忆槽（寻址强度的分布锐利，即真正大的强度仅分布于部分记忆槽）。局部的特性让记忆的存取更干净，干扰更小。</li>
+</ul>
+
+<h3 id="模型网络结构">模型网络结构</h3>
+
+<p>网络总体结构在带注意机制的序列到序列结构（即RNNsearch[<a href="##参考文献">3</a>]） 基础上叠加简化版神经图灵机[<a href="#参考文献">1</a>]外部记忆模块。</p>
+
+<ul>
+  <li>编码器（Encoder）采用标准<strong>双向 GRU 结构</strong>（非 stack），不赘述。</li>
+  <li>解码器（Decoder）采用和论文[<a href="#参考文献">2</a>] 基本相同的结构，见图4（修改自论文[<a href="#参考文献参考文献">2</a>]) 。</li>
+</ul>
+
+<div align="center">
+&lt;img src="image/memory_enhanced_decoder.png" width=450&gt;<br />
+图4. 通过外部记忆增强的解码器结构示意图
+</div>
+
+<p>解码器结构图，解释如下：</p>
+
+<ol>
+  <li>$M_{t-1}^B$ 和 $M_t^B$ 为有界外部存储矩阵，前者为上一时间步存储矩阵的状态，后者为当前时间步的状态。$\textrm{read}^B$ 和 $\textrm{write}$ 为对应的读写头（包含其控制器）。$r_t$ 为对应的读出向量。</li>
+  <li>$M^S$ 为无界外部存储矩阵，$\textrm{read}^S$ 为对应的读头，二者配合即实现传统的注意力机制。$c_t$ 为对应的读出向量。</li>
+  <li>$y_{t-1}$ 为解码器上一步的输出字符并做词向量（Word Embedding）映射，作为当前步的输入，$y_t$ 为解码器当前步的解码符号的概率分布。</li>
+  <li>虚线框内（除$M^S$外），整体可视为有界外部存储模块。可以看到，除去该部分，网络结构和 RNNsearch[<a href="#参考文献">3</a>] 基本一致（略有不一致之处为：用于 attention 的 decoder state 被改进，即叠加了一隐层并引入了 $y_{t-1}$）。</li>
+</ol>
+
+<h2 id="算法实现">算法实现</h2>
+
+<p>算法实现于以下几个文件中：</p>
+
+<ul>
+  <li><code class="highlighter-rouge">external_memory.py</code>: 主要实现简化版的 <strong>神经图灵机</strong> 于 <code class="highlighter-rouge">ExternalMemory</code> 类，对外提供初始化和读写函数。</li>
+  <li><code class="highlighter-rouge">model.py</code>: 相关模型配置函数，包括双向 GPU 编码器（<code class="highlighter-rouge">bidirectional_gru_encoder</code>），带外部记忆强化的解码器（<code class="highlighter-rouge">memory_enhanced_decoder</code>），带外部记忆强化的序列到序列模型（<code class="highlighter-rouge">memory_enhanced_decoder</code>）。</li>
+  <li><code class="highlighter-rouge">data_utils.py</code>: 相关数据处理辅助函数。</li>
+  <li><code class="highlighter-rouge">train.py</code>: 模型训练。</li>
+  <li><code class="highlighter-rouge">infer.py</code>: 部分示例样本的翻译（模型推断）。</li>
+</ul>
+
+<h3 id="externalmemory-类"><code class="highlighter-rouge">ExternalMemory</code> 类</h3>
+
+<p><code class="highlighter-rouge">ExternalMemory</code> 类实现通用的简化版<strong>神经图灵机</strong>。相比完整版神经图灵机，该类仅实现了基于内容的寻址（Content Addressing, Interpolation），不包括基于位置的寻址（ Convolutional Shift, Sharpening)。读者可以自行将其补充成为一个完整的神经图灵机。</p>
+
+<p>该类结构如下：</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ExternalMemory</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="s">"""External neural memory class.
+
+    A simplified Neural Turing Machines (NTM) with only content-based
+    addressing (including content addressing and interpolation, but excluding
+    convolutional shift and sharpening). It serves as an external differential
+    memory bank, with differential write/read head controllers to store
+    and read information dynamically as needed. Simple feedforward networks are
+    used as the write/read head controllers.
+
+    For more details, please refer to
+    `Neural Turing Machines &lt;https://arxiv.org/abs/1410.5401&gt;`_.
+    """</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">,</span>
+                 <span class="n">mem_slot_size</span><span class="p">,</span>
+                 <span class="n">boot_layer</span><span class="p">,</span>
+                 <span class="n">initial_weight</span><span class="p">,</span>
+                 <span class="n">readonly</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                 <span class="n">enable_interpolation</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="s">""" Initialization.
+
+        :param name: Memory name.
+        :type name: basestring
+        :param mem_slot_size: Size of memory slot/vector.
+        :type mem_slot_size: int
+        :param boot_layer: Boot layer for initializing the external memory. The
+                           sequence layer has sequence length indicating the number
+                           of memory slots, and size as memory slot size.
+        :type boot_layer: LayerOutput
+        :param initial_weight: Initializer for addressing weights.
+        :type initial_weight: LayerOutput
+        :param readonly: If true, the memory is read-only, and write function cannot
+                         be called. Default is false.
+        :type readonly: bool
+        :param enable_interpolation: If set true, the read/write addressing weights
+                                     will be interpolated with the weights in the
+                                     last step, with the affine coefficients being
+                                     a learnable gate function.
+        :type enable_interpolation: bool
+        """</span>
+
+    <span class="k">def</span> <span class="nf">_content_addressing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key_vector</span><span class="p">):</span>
+        <span class="s">"""Get write/read head's addressing weights via content-based addressing.
+        """</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">_interpolation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">head_name</span><span class="p">,</span> <span class="n">key_vector</span><span class="p">,</span> <span class="n">addressing_weight</span><span class="p">):</span>
+        <span class="s">"""Interpolate between previous and current addressing weights.
+        """</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">_get_addressing_weight</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">head_name</span><span class="p">,</span> <span class="n">key_vector</span><span class="p">):</span>
+        <span class="s">"""Get final addressing weights for read/write heads, including content
+        addressing and interpolation.
+        """</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">write_key</span><span class="p">):</span>
+        <span class="s">"""Write onto the external memory.
+        It cannot be called if "readonly" set True.
+
+        :param write_key: Key vector for write heads to generate writing
+                          content and addressing signals.
+        :type write_key: LayerOutput
+        pass
+
+    def read(self, read_key):
+        """</span><span class="n">Read</span> <span class="kn">from</span> <span class="nn">the</span> <span class="nn">external</span> <span class="nn">memory.</span><span class="err">
+
+</span>        <span class="err">:</span><span class="nn">param</span> <span class="nn">write_key</span><span class="err">:</span> <span class="nn">Key</span> <span class="nn">vector</span> <span class="nn">for</span> <span class="nn">read</span> <span class="nn">head</span> <span class="nn">to</span> <span class="nn">generate</span> <span class="nn">addressing</span><span class="err">
+</span>                          <span class="nn">signals.</span><span class="err">
+</span>        <span class="err">:</span><span class="nn">type</span> <span class="nn">write_key</span><span class="err">:</span> <span class="nn">LayerOutput</span><span class="err">
+</span>        <span class="err">:</span><span class="nn">return</span><span class="err">:</span> <span class="nn">Content</span> <span class="err">(</span><span class="nn">vector</span><span class="err">)</span> <span class="nn">read</span> <span class="nn">from</span> <span class="nn">external</span> <span class="nn">memory.</span><span class="err">
+</span>        <span class="err">:</span><span class="nn">rtype</span><span class="err">:</span> <span class="nn">LayerOutput</span><span class="err">
+</span>        <span class="err">"""
+</span>        <span class="nn">pass</span><span class="err">
+</span></code></pre>
+</div>
+
+<p>其中，私有方法包含：</p>
+
+<ul>
+  <li><code class="highlighter-rouge">_content_addressing</code>: 通过基于内容的寻址，计算得到读写操作的寻址强度。</li>
+  <li><code class="highlighter-rouge">_interpolation</code>: 通过插值寻址（当前寻址强度和上一时间步寻址强度的线性加权），更新当前寻址强度。</li>
+  <li><code class="highlighter-rouge">_get_addressing_weight</code>: 调用上述两个寻址操作，获得对存储单元的读写操作的最终寻址强度。</li>
+</ul>
+
+<p>对外接口包含：</p>
+
+<ul>
+  <li><code class="highlighter-rouge">__init__</code>：类实例初始化。
+    <ul>
+      <li>输入参数 <code class="highlighter-rouge">name</code>: 外部记忆单元名，不同实例的相同命名将共享同一外部记忆单元。</li>
+      <li>输入参数 <code class="highlighter-rouge">mem_slot_size</code>: 单个记忆槽（向量）的维度。</li>
+      <li>输入参数 <code class="highlighter-rouge">boot_layer</code>: 用于内存槽初始化的层。需为序列类型，序列长度表明记忆槽的数量。</li>
+      <li>输入参数 <code class="highlighter-rouge">initial_weight</code>: 用于初始化寻址强度。</li>
+      <li>输入参数 <code class="highlighter-rouge">readonly</code>: 是否打开只读模式（例如打开只读模式，该实例可用于注意力机制）。打开只读模式，<code class="highlighter-rouge">write</code> 方法不可被调用。</li>
+      <li>输入参数 <code class="highlighter-rouge">enable_interpolation</code>: 是否允许插值寻址（例如当用于注意力机制时，需要关闭插值寻址）。</li>
+    </ul>
+  </li>
+  <li><code class="highlighter-rouge">write</code>: 写操作。
+    <ul>
+      <li>输入参数 <code class="highlighter-rouge">write_key</code>：某层的输出，其包含的信息用于写头的寻址和实际写入信息的生成。</li>
+    </ul>
+  </li>
+  <li><code class="highlighter-rouge">read</code>: 读操作。
+    <ul>
+      <li>输入参数 <code class="highlighter-rouge">read_key</code>：某层的输出，其包含的信息用于读头的寻址。</li>
+      <li>返回：读出的信息（可直接作为其他层的输入）。</li>
+    </ul>
+  </li>
+</ul>
+
+<p>部分关键实现逻辑：</p>
+
+<ul>
+  <li>
+    <p>神经图灵机的 “外部存储矩阵” 采用 <code class="highlighter-rouge">Paddle.layer.memory</code>实现。该序列的长度表示记忆槽的数量，序列的 <code class="highlighter-rouge">size</code> 表示记忆槽（向量）的大小。该序列依赖一个外部层作为初始化， 其记忆槽的数量取决于该层输出序列的长度。因此，该类不仅可用来实现有界记忆（Bounded Memory)，同时可用来实现无界记忆 (Unbounded Memory，即记忆槽数量可变)。</p>
+
+    <div class="language-python highlighter-rouge"><pre class="highlight"><code> <span class="bp">self</span><span class="o">.</span><span class="n">external_memory</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">layer</span><span class="o">.</span><span class="n">memory</span><span class="p">(</span>
+     <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+     <span class="n">size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mem_slot_size</span><span class="p">,</span>
+     <span class="n">boot_layer</span><span class="o">=</span><span class="n">boot_layer</span><span class="p">)</span>
+</code></pre>
+    </div>
+  </li>
+  <li><code class="highlighter-rouge">ExternalMemory</code>类的寻址逻辑通过 <code class="highlighter-rouge">_content_addressing</code> 和 <code class="highlighter-rouge">_interpolation</code> 两个私有方法实现。读和写操作通过 <code class="highlighter-rouge">read</code> 和 <code class="highlighter-rouge">write</code> 两个函数实现，包括上述的寻址操作。并且读和写的寻址独立进行，不同于 [<a href="#参考文献">2</a>] 中的二者共享同一个寻址强度，目的是为了使得该类更通用。</li>
+  <li>为了简单起见，控制器（Controller）未被专门模块化，而是分散在各个寻址和读写函数中。控制器主要包括寻址操作和写操作时生成写入/擦除向量等，其中寻址操作通过上述的<code class="highlighter-rouge">_content_addressing</code> 和 <code class="highlighter-rouge">_interpolation</code> 两个私有方法实现，写操作时的写入/擦除向量的生成则在 <code class="highlighter-rouge">write</code> 方法中实现。上述均采用简单的前馈网络模拟控制器。读者可尝试剥离控制器逻辑并模块化，同时可尝试循环神经网络做控制器。</li>
+  <li>
+    <p><code class="highlighter-rouge">ExternalMemory</code> 类具有只读模式，同时差值寻址操作可关闭。主要目的是便于用该类等价实现传统的注意力机制。</p>
+  </li>
+  <li><code class="highlighter-rouge">ExternalMemory</code> 只能和 <code class="highlighter-rouge">paddle.layer.recurrent_group</code>配合使用，具体在用户自定义的 <code class="highlighter-rouge">step</code> 函数中使用（示例请详细代码），它不可以单独存在。</li>
+</ul>
+
+<h3 id="memory_enhanced_seq2seq-及相关函数"><code class="highlighter-rouge">memory_enhanced_seq2seq</code> 及相关函数</h3>
+
+<p>涉及三个主要函数：</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="nf">bidirectional_gru_encoder</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">word_vec_dim</span><span class="p">):</span>
+    <span class="s">"""Bidirectional GRU encoder.
+
+    :params size: Hidden cell number in decoder rnn.
+    :type size: int
+    :params word_vec_dim: Word embedding size.
+    :type word_vec_dim: int
+    :return: Tuple of 1. concatenated forward and backward hidden sequence.
+             2. last state of backward rnn.
+    :rtype: tuple of LayerOutput
+    """</span>
+    <span class="k">pass</span>
+
+
+<span class="k">def</span> <span class="nf">memory_enhanced_decoder</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">initial_state</span><span class="p">,</span> <span class="n">source_context</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span>
+                            <span class="n">word_vec_dim</span><span class="p">,</span> <span class="n">dict_size</span><span class="p">,</span> <span class="n">is_generating</span><span class="p">,</span> <span class="n">beam_size</span><span class="p">):</span>
+    <span class="s">"""GRU sequence decoder enhanced with external memory.
+
+    The "external memory" refers to two types of memories.
+    - Unbounded memory: i.e. attention mechanism in Seq2Seq.
+    - Bounded memory: i.e. external memory in NTM.
+    Both types of external memories can be implemented with
+    ExternalMemory class, and are both exploited in this enhanced RNN decoder.
+
+    The vanilla RNN/LSTM/GRU also has a narrow memory mechanism, namely the
+    hidden state vector (or cell state in LSTM) carrying information through
+    a span of sequence time, which is a successful design enriching the model
+    with the capability to "remember" things in the long run. However, such a
+    vector state is somewhat limited to a very narrow memory bandwidth. External
+    memory introduced here could easily increase the memory capacity with linear
+    complexity cost (rather than quadratic for vector state).
+
+    This enhanced decoder expands its "memory passage" through two
+    ExternalMemory objects:
+    - Bounded memory for handling long-term information exchange within decoder
+      itself. A direct expansion of traditional "vector" state.
+    - Unbounded memory for handling source language's token-wise information.
+      Exactly the attention mechanism over Seq2Seq.
+
+    Notice that we take the attention mechanism as a particular form of external
+    memory, with read-only memory bank initialized with encoder states, and a
+    read head with content-based addressing (attention). From this view point,
+    we arrive at a better understanding of attention mechanism itself and other
+    external memory, and a concise and unified implementation for them.
+
+    For more details about external memory, please refer to
+    `Neural Turing Machines &lt;https://arxiv.org/abs/1410.5401&gt;`_.
+
+    For more details about this memory-enhanced decoder, please
+    refer to `Memory-enhanced Decoder for Neural Machine Translation
+    &lt;https://arxiv.org/abs/1606.02003&gt;`_. This implementation is highly
+    correlated to this paper, but with minor differences (e.g. put "write"
+    before "read" to bypass a potential bug in V2 APIs. See
+    (`issue &lt;https://github.com/PaddlePaddle/Paddle/issues/2061&gt;`_).
+    """</span>
+    <span class="k">pass</span>
+
+
+
+<span class="k">def</span> <span class="nf">memory_enhanced_seq2seq</span><span class="p">(</span><span class="n">encoder_input</span><span class="p">,</span> <span class="n">decoder_input</span><span class="p">,</span> <span class="n">decoder_target</span><span class="p">,</span>
+                            <span class="n">hidden_size</span><span class="p">,</span> <span class="n">word_vec_dim</span><span class="p">,</span> <span class="n">dict_size</span><span class="p">,</span> <span class="n">is_generating</span><span class="p">,</span>
+                            <span class="n">beam_size</span><span class="p">):</span>
+    <span class="s">"""Seq2Seq Model enhanced with external memory.
+
+    The "external memory" refers to two types of memories.
+    - Unbounded memory: i.e. attention mechanism in Seq2Seq.
+    - Bounded memory: i.e. external memory in NTM.
+    Both types of external memories can be implemented with
+    ExternalMemory class, and are both exploited in this Seq2Seq model.
+
+    :params encoder_input: Encoder input.
+    :type encoder_input: LayerOutput
+    :params decoder_input: Decoder input.
+    :type decoder_input: LayerOutput
+    :params decoder_target: Decoder target.
+    :type decoder_target: LayerOutput
+    :params hidden_size: Hidden cell number, both in encoder and decoder rnn.
+    :type hidden_size: int
+    :params word_vec_dim: Word embedding size.
+    :type word_vec_dim: int
+    :param dict_size: Vocabulary size.
+    :type dict_size: int
+    :params is_generating: Whether for beam search inferencing (True) or
+                           for training (False).
+    :type is_generating: bool
+    :params beam_size: Beam search width.
+    :type beam_size: int
+    :return: Cost layer if is_generating=False; Beam search layer if
+             is_generating = True.
+    :rtype: LayerOutput
+    """</span>
+    <span class="k">pass</span>
+</code></pre>
+</div>
+
+<ul>
+  <li>
+    <p><code class="highlighter-rouge">bidirectional_gru_encoder</code> 函数实现双向单层 GRU（Gated Recurrent Unit） 编码器。返回两组结果：一组为字符级编码向量序列（包含前后向），一组为整个源语句的句级编码向量（仅后向）。前者用于解码器的注意力机制中记忆矩阵的初始化，后者用于解码器的状态向量的初始化。</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">memory_enhanced_decoder</code> 函数实现通过外部记忆增强的 GRU 解码器。它利用同一个<code class="highlighter-rouge">ExternalMemory</code> 类实现两种外部记忆模块：</p>
+
+    <ul>
+      <li>
+        <p>无界外部记忆：即传统的注意力机制。利用<code class="highlighter-rouge">ExternalMemory</code>，打开只读开关，关闭插值寻址。并利用解码器的第一组输出作为 <code class="highlighter-rouge">ExternalMemory</code> 中存储矩阵的初始化（<code class="highlighter-rouge">boot_layer</code>）。因此，该存储的记忆槽数目是动态可变的，取决于编码器的字符数。</p>
+
+        <div class="language-python highlighter-rouge"><pre class="highlight"><code>  <span class="n">unbounded_memory</span> <span class="o">=</span> <span class="n">ExternalMemory</span><span class="p">(</span>
+      <span class="n">name</span><span class="o">=</span><span class="s">"unbounded_memory"</span><span class="p">,</span>
+      <span class="n">mem_slot_size</span><span class="o">=</span><span class="n">size</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>
+      <span class="n">boot_layer</span><span class="o">=</span><span class="n">unbounded_memory_init</span><span class="p">,</span>
+      <span class="n">initial_weight</span><span class="o">=</span><span class="n">unbounded_memory_weight_init</span><span class="p">,</span>
+      <span class="n">readonly</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+      <span class="n">enable_interpolation</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</code></pre>
+        </div>
+      </li>
+      <li>
+        <p>有界外部记忆：利用<code class="highlighter-rouge">ExternalMemory</code>，关闭只读开关，打开插值寻址。并利用解码器的第一组输出，取均值池化（pooling）后并扩展为指定序列长度后，叠加随机噪声（训练和推断时保持一致），作为 <code class="highlighter-rouge">ExternalMemory</code> 中存储矩阵的初始化（<code class="highlighter-rouge">boot_layer</code>）。因此，该存储的记忆槽数目是固定的。即代码中的：</p>
+
+        <div class="language-python highlighter-rouge"><pre class="highlight"><code>  <span class="n">bounded_memory</span> <span class="o">=</span> <span class="n">ExternalMemory</span><span class="p">(</span>
+      <span class="n">name</span><span class="o">=</span><span class="s">"bounded_memory"</span><span class="p">,</span>
+      <span class="n">mem_slot_size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span>
+      <span class="n">boot_layer</span><span class="o">=</span><span class="n">bounded_memory_init</span><span class="p">,</span>
+      <span class="n">initial_weight</span><span class="o">=</span><span class="n">bounded_memory_weight_init</span><span class="p">,</span>
+      <span class="n">readonly</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+      <span class="n">enable_interpolation</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</code></pre>
+        </div>
+      </li>
+    </ul>
+
+    <p>注意到，在我们的实现中，注意力机制（或无界外部存储）和神经图灵机（或有界外部存储）被实现成相同的 <code class="highlighter-rouge">ExternalMemory</code> 类。前者是<strong>只读</strong>的， 后者<strong>可读可写</strong>。这样处理仅仅是为了便于统一我们对 “注意机制” 和 “记忆机制” 的理解和认识，同时也提供更简洁和统一的实现版本。注意力机制也可以通过 <code class="highlighter-rouge">paddle.networks.simple_attention</code> 实现。</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">memory_enhanced_seq2seq</code> 函数定义整个带外部记忆机制的序列到序列模型，是模型定义的主调函数。它首先调用<code class="highlighter-rouge">bidirectional_gru_encoder</code> 对源语言进行编码，然后通过 <code class="highlighter-rouge">memory_enhanced_decoder</code> 进行解码。</p>
+  </li>
+</ul>
+
+<p>此外，在该实现中，将 <code class="highlighter-rouge">ExternalMemory</code> 的 <code class="highlighter-rouge">write</code> 操作提前至 <code class="highlighter-rouge">read</code> 之前，以避开潜在的拓扑连接局限，详见 <a href="https://github.com/PaddlePaddle/Paddle/issues/2061">Issue</a>。我们可以看到，本质上他们是等价的。</p>
+
+<h2 id="快速开始">快速开始</h2>
+
+<h3 id="数据自定义">数据自定义</h3>
+
+<p>数据是通过无参的 <code class="highlighter-rouge">reader()</code> 迭代器函数，进入训练过程。因此我们需要为训练数据和测试数据分别构造两个 <code class="highlighter-rouge">reader()</code> 迭代器。<code class="highlighter-rouge">reader()</code> 函数使用 <code class="highlighter-rouge">yield</code> 来实现迭代器功能（即可通过 <code class="highlighter-rouge">for instance in reader()</code> 方式迭代运行）， 例如</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="k">def</span> <span class="nf">reader</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">instance</span> <span class="ow">in</span> <span class="n">data_list</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">instance</span>
+</code></pre>
+</div>
+
+<p><code class="highlighter-rouge">yield</code> 返回的每条样本需为三元组，分别包含编码器输入字符列表（即源语言序列，需 ID 化），解码器输入字符列表（即目标语言序列，需 ID 化，且序列右移一位），解码器输出字符列表（即目标语言序列，需 ID 化）。</p>
+
+<p>用户需自行完成字符的切分 (Tokenize) ，并构建字典完成 ID 化。</p>
+
+<p>PaddlePaddle 的接口 <a href="https://github.com/PaddlePaddle/Paddle/blob/develop/python/paddle/v2/dataset/wmt14.py">paddle.paddle.wmt14</a>， 默认提供了一个经过预处理的、较小规模的 <a href="http://paddlepaddle.bj.bcebos.com/demo/wmt_shrinked_data/wmt14.tgz">wmt14 英法翻译数据集的子集</a>(该数据集有193319条训练数据，6003条测试数据，词典长度为30000)。并提供了两个reader creator函数如下：</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">paddle</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">wmt14</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">dict_size</span><span class="p">)</span>
+<span class="n">paddle</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">wmt14</span><span class="o">.</span><span class="n">test</span><span class="p">(</span><span class="n">dict_size</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<p>这两个函数被调用时即返回相应的<code class="highlighter-rouge">reader()</code>函数，供<code class="highlighter-rouge">paddle.traner.SGD.train</code>使用。当我们需要使用其他数据时，可参考 <a href="https://github.com/PaddlePaddle/Paddle/blob/develop/python/paddle/v2/dataset/wmt14.py">paddle.paddle.wmt14</a> 构造相应的 data creator，并替换 <code class="highlighter-rouge">paddle.dataset.wmt14.train</code> 和 <code class="highlighter-rouge">paddle.dataset.wmt14.train</code> 成相应函数名。</p>
+
+<h3 id="训练">训练</h3>
+
+<p>命令行输入：</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>python mt_with_external_memory.py
+</code></pre>
+</div>
+<p>或自定义部分参数, 例如:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>python train.py <span class="se">\</span>
+--dict_size 30000 <span class="se">\</span>
+--word_vec_dim 512 <span class="se">\</span>
+--hidden_size 1024 <span class="se">\</span>
+--memory_slot_num 8 <span class="se">\</span>
+--use_gpu False <span class="se">\</span>
+--trainer_count 1 <span class="se">\</span>
+--num_passes 100 <span class="se">\</span>
+--batch_size 128 <span class="se">\</span>
+--memory_perturb_stddev 0.1
+</code></pre>
+</div>
+
+<p>即可运行训练脚本，训练模型将被定期保存于本地 <code class="highlighter-rouge">./checkpoints</code>。参数含义可运行</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>python train.py --help
+</code></pre>
+</div>
+
+<h3 id="解码">解码</h3>
+
+<p>命令行输入：</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>python infer.py
+</code></pre>
+</div>
+<p>或自定义部分参数, 例如:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>python infer.py <span class="se">\</span>
+--dict_size 30000 <span class="se">\</span>
+--word_vec_dim 512 <span class="se">\</span>
+--hidden_size 1024 <span class="se">\</span>
+--memory_slot_num 8 <span class="se">\</span>
+--use_gpu False <span class="se">\</span>
+--trainer_count 1 <span class="se">\</span>
+--memory_perturb_stddev 0.1 <span class="se">\</span>
+--infer_data_num 10 <span class="se">\</span>
+--model_filepath checkpoints/params.latest.tar.gz <span class="se">\</span>
+--beam_size 3
+</code></pre>
+</div>
+
+<p>即可运行解码脚本，产生示例翻译结果。参数含义可运行：</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>python infer.py --help
+</code></pre>
+</div>
+
+<h2 id="其他讨论">其他讨论</h2>
+
+<h4 id="和论文2实现的差异">和论文[<a href="#参考文献">2</a>]实现的差异</h4>
+
+<p>差异如下：</p>
+
+<ol>
+  <li>基于内容的寻址公式不同: 原文为 $a = v^T(WM^B + Us)$，本示例为 $a = v^T \textrm{tanh}(WM^B + Us)$，以保持和 [<a href="#参考文献">3</a>] 中的注意力机制寻址方式一致。</li>
+  <li>有界外部存储的初始化方式不同: 原文为 $M^B = \sigma(W\sum_{i=0}^{i=n}h_i)/n + V$, $V_{i,j}~\in \mathcal{N}(0, 0.1)$，本示例为 $M^B = \sigma(\frac{1}{n}W\sum_{i=0}^{i=n}h_i) + V$。</li>
+  <li>外部记忆机制的读和写的寻址逻辑不同：原文二者共享同一个寻址强度，相当于权值联结（Weight Tying）正则。本示例不施加该正则，读和写采用独立寻址。</li>
+  <li>同时间步内的外部记忆读写次序不同：原文为先读后写，本示例为先写后读，本质等价。</li>
+</ol>
+
+<h2 id="参考文献">参考文献</h2>
+
+<ol>
+  <li>Alex Graves, Greg Wayne, Ivo Danihelka, <a href="https://arxiv.org/abs/1410.5401">Neural Turing Machines</a>. arXiv preprint arXiv:1410.5401, 2014.</li>
+  <li>Mingxuan Wang, Zhengdong Lu, Hang Li, Qun Liu, <a href="https://arxiv.org/abs/1606.02003">Memory-enhanced Decoder Neural Machine Translation</a>. In Proceedings of EMNLP, 2016, pages 278–286.</li>
+  <li>Dzmitry Bahdanau, Kyunghyun Cho, Yoshua Bengio, <a href="https://arxiv.org/abs/1409.0473">Neural Machine Translation by Jointly Learning to Align and Translate</a>. arXiv preprint arXiv:1409.0473, 2014.</li>
+</ol>
+
+  </div>
+
+  
+</article>
+
+      </div>
+    </main>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">PaddlePaddle Model Zoo</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li>
+            
+              PaddlePaddle Model Zoo
+            
+            </li>
+            
+            <li><a href="mailto:idl-paddle@baidu.com">idl-paddle@baidu.com</a></li>
+            
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/PaddlePaddle"><span class="icon icon--github"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/></svg>
+</span><span class="username">PaddlePaddle</span></a>
+
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/BaiduResearch"><span class="icon icon--twitter"><svg viewBox="0 0 16 16" width="16px" height="16px"><path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/></svg>
+</span><span class="username">BaiduResearch</span></a>
+
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>PaddlePaddle, PArallel Distributed Deep LEarning, n Easy-to-use, Efficient, Flexible and Scalable Deep Learning Platform.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

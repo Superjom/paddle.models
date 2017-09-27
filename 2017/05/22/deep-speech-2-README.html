@@ -6,11 +6,11 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title> Deep Speech 2 on PaddlePaddle</title>
-  <meta name="description" content="Deep Speech 2 on PaddlePaddle">
+  <title> DeepSpeech2 on PaddlePaddle</title>
+  <meta name="description" content="DeepSpeech2 on PaddlePaddle">
 
   <link rel="stylesheet" href="/assets/main.css">
-  <link rel="canonical" href="http://models.paddlepaddle.org/2017/05/22/deep-speech-2-README.html">
+  <link rel="canonical" href="http://localhost:4000/2017/05/22/deep-speech-2-README.html">
   <link rel="alternate" type="application/rss+xml" title="PaddlePaddle Model Zoo" href="/feed.xml">
   <link rel="stylesheet" href="/assets/github-markdown.css">
   
@@ -62,9 +62,9 @@
         <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
 
   <header class="post-header">
-    <h1 class="post-title" itemprop="name headline"> Deep Speech 2 on PaddlePaddle</h1>
+    <h1 class="post-title" itemprop="name headline"> DeepSpeech2 on PaddlePaddle</h1>
     <p class="post-meta">
-      <time datetime="2017-05-22T00:00:00+08:00" itemprop="datePublished">
+      <time datetime="2017-05-22T00:00:00-07:00" itemprop="datePublished">
         
         May 22, 2017
       </time>
@@ -73,84 +73,680 @@
 
   <!-- <div class="post-content" itemprop="articleBody">-->
   <div class="markdown-body" itemprop="articleBody">
-    <h1 id="deep-speech-2-on-paddlepaddle">Deep Speech 2 on PaddlePaddle</h1>
+    <h1 id="deepspeech2-on-paddlepaddle">DeepSpeech2 on PaddlePaddle</h1>
+
+<p><em>DeepSpeech2 on PaddlePaddle</em> is an open-source implementation of end-to-end Automatic Speech Recognition (ASR) engine, based on <a href="http://proceedings.mlr.press/v48/amodei16.pdf">Baidu’s Deep Speech 2 paper</a>, with <a href="https://github.com/PaddlePaddle/Paddle">PaddlePaddle</a> platform. Our vision is to empower both industrial application and academic research on speech recognition, via an easy-to-use, efficient and scalable implementation, including training, inference &amp; testing module, distributed <a href="https://github.com/PaddlePaddle/cloud">PaddleCloud</a> training, and demo deployment. Besides, several pre-trained models for both English and Mandarin are also released.</p>
+
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+  <li><a href="#prerequisites">Prerequisites</a></li>
+  <li><a href="#installation">Installation</a></li>
+  <li><a href="#getting-started">Getting Started</a></li>
+  <li><a href="#data-preparation">Data Preparation</a></li>
+  <li><a href="#training-a-model">Training a Model</a></li>
+  <li><a href="#data-augmentation-pipeline">Data Augmentation Pipeline</a></li>
+  <li><a href="#inference-and-evaluation">Inference and Evaluation</a></li>
+  <li><a href="#distributed-cloud-training">Distributed Cloud Training</a></li>
+  <li><a href="#hyper-parameters-tuning">Hyper-parameters Tuning</a></li>
+  <li><a href="#training-for-mandarin-language">Training for Mandarin Language</a></li>
+  <li><a href="#trying-live-demo-with-your-own-voice">Trying Live Demo with Your Own Voice</a></li>
+  <li><a href="#released-models">Released Models</a></li>
+  <li><a href="#experiments-and-benchmarks">Experiments and Benchmarks</a></li>
+  <li><a href="#questions-and-help">Questions and Help</a></li>
+</ul>
+
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+  <li>Python 2.7 only supported</li>
+  <li>PaddlePaddle the latest version (please refer to the <a href="https://github.com/PaddlePaddle/Paddle#installation">Installation Guide</a>)</li>
+</ul>
 
 <h2 id="installation">Installation</h2>
 
-<p>Please replace <code class="highlighter-rouge">$PADDLE_INSTALL_DIR</code> with your own paddle installation directory.</p>
+<p>Please make sure the above <a href="#prerequisites">prerequisites</a> have been satisfied before moving on.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>sh setup.sh
-export LD_LIBRARY_PATH=$PADDLE_INSTALL_DIR/Paddle/third_party/install/warpctc/lib:$LD_LIBRARY_PATH
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>git clone https://github.com/PaddlePaddle/models.git
+<span class="nb">cd </span>models/deep_speech_2
+sh setup.sh
 </code></pre>
 </div>
 
-<p>For some machines, we also need to install libsndfile1. Details to be added.</p>
+<h2 id="getting-started">Getting Started</h2>
 
-<h2 id="usage">Usage</h2>
+<p>Several shell scripts provided in <code class="highlighter-rouge">./examples</code> will help us to quickly give it a try, for most major modules, including data preparation, model training, case inference and model evaluation, with a few public dataset (e.g. <a href="http://www.openslr.org/12/">LibriSpeech</a>, <a href="http://www.openslr.org/33">Aishell</a>). Reading these examples will also help you to understand how to make it work with your own data.</p>
 
-<h3 id="preparing-data">Preparing Data</h3>
+<p>Some of the scripts in <code class="highlighter-rouge">./examples</code> are configured with 8 GPUs. If you don’t have 8 GPUs available, please modify <code class="highlighter-rouge">CUDA_VISIBLE_DEVICES</code> and <code class="highlighter-rouge">--trainer_count</code>. If you don’t have any GPU available, please set <code class="highlighter-rouge">--use_gpu</code> to False to use CPUs instead. Besides, if out-of-memory problem occurs, just reduce <code class="highlighter-rouge">--batch_size</code> to fit.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>cd datasets
-sh run_all.sh
-cd ..
+<p>Let’s take a tiny sampled subset of <a href="http://www.openslr.org/12/">LibriSpeech dataset</a> for instance.</p>
+
+<ul>
+  <li>
+    <p>Go to directory</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  <span class="nb">cd </span>examples/tiny
+</code></pre>
+    </div>
+
+    <p>Notice that this is only a toy example with a tiny sampled subset of LibriSpeech. If you would like to try with the complete dataset (would take several days for training), please go to <code class="highlighter-rouge">examples/librispeech</code> instead.</p>
+  </li>
+  <li>
+    <p>Prepare the data</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  sh run_data.sh
+</code></pre>
+    </div>
+
+    <p><code class="highlighter-rouge">run_data.sh</code> will download dataset, generate manifests, collect normalizer’s statistics and build vocabulary. Once the data preparation is done, you will find the data (only part of LibriSpeech) downloaded in <code class="highlighter-rouge">~/.cache/paddle/dataset/speech/libri</code> and the corresponding manifest files generated in <code class="highlighter-rouge">./data/tiny</code> as well as a mean stddev file and a vocabulary file. It has to be run for the very first time you run this dataset and is reusable for all further experiments.</p>
+  </li>
+  <li>
+    <p>Train your own ASR model</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  sh run_train.sh
+</code></pre>
+    </div>
+
+    <p><code class="highlighter-rouge">run_train.sh</code> will start a training job, with training logs printed to stdout and model checkpoint of every pass/epoch saved to <code class="highlighter-rouge">./checkpoints/tiny</code>. These checkpoints could be used for training resuming, inference, evaluation and deployment.</p>
+  </li>
+  <li>
+    <p>Case inference with an existing model</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  sh run_infer.sh
+</code></pre>
+    </div>
+
+    <p><code class="highlighter-rouge">run_infer.sh</code> will show us some speech-to-text decoding results for several (default: 10) samples with the trained model. The performance might not be good now as the current model is only trained with a toy subset of LibriSpeech. To see the results with a better model, you can download a well-trained (trained for several days, with the complete LibriSpeech) model and do the inference:</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  sh run_infer_golden.sh
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>Evaluate an existing model</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  sh run_test.sh
+</code></pre>
+    </div>
+
+    <p><code class="highlighter-rouge">run_test.sh</code> will evaluate the model with Word Error Rate (or Character Error Rate) measurement. Similarly, you can also download a well-trained model and test its performance:</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  sh run_test_golden.sh
+</code></pre>
+    </div>
+  </li>
+</ul>
+
+<p>More detailed information are provided in the following sections. Wish you a happy journey with the <em>DeepSpeech2 on PaddlePaddle</em> ASR engine!</p>
+
+<h2 id="data-preparation">Data Preparation</h2>
+
+<h3 id="generate-manifest">Generate Manifest</h3>
+
+<p><em>DeepSpeech2 on PaddlePaddle</em> accepts a textual <strong>manifest</strong> file as its data set interface. A manifest file summarizes a set of speech data, with each line containing some meta data (e.g. filepath, transcription, duration) of one audio clip, in <a href="http://www.json.org/">JSON</a> format, such as:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="nt">"audio_filepath"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/home/work/.cache/paddle/Libri/134686/1089-134686-0001.flac"</span><span class="p">,</span><span class="w"> </span><span class="nt">"duration"</span><span class="p">:</span><span class="w"> </span><span class="mf">3.275</span><span class="p">,</span><span class="w"> </span><span class="nt">"text"</span><span class="p">:</span><span class="w"> </span><span class="s2">"stuff it into you his belly counselled him"</span><span class="p">}</span><span class="w">
+</span><span class="p">{</span><span class="nt">"audio_filepath"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/home/work/.cache/paddle/Libri/134686/1089-134686-0007.flac"</span><span class="p">,</span><span class="w"> </span><span class="nt">"duration"</span><span class="p">:</span><span class="w"> </span><span class="mf">4.275</span><span class="p">,</span><span class="w"> </span><span class="nt">"text"</span><span class="p">:</span><span class="w"> </span><span class="s2">"a cold lucid indifference reigned in his soul"</span><span class="p">}</span><span class="w">
+</span></code></pre>
+</div>
+
+<p>To use your custom data, you only need to generate such manifest files to summarize the dataset. Given such summarized manifests, training, inference and all other modules can be aware of where to access the audio files, as well as their meta data including the transcription labels.</p>
+
+<p>For how to generate such manifest files, please refer to <code class="highlighter-rouge">data/librispeech/librispeech.py</code>, which will download data and generate manifest files for LibriSpeech dataset.</p>
+
+<h3 id="compute-mean--stddev-for-normalizer">Compute Mean &amp; Stddev for Normalizer</h3>
+
+<p>To perform z-score normalization (zero-mean, unit stddev) upon audio features, we have to estimate in advance the mean and standard deviation of the features, with some training samples:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>python tools/compute_mean_std.py <span class="se">\</span>
+--num_samples 2000 <span class="se">\</span>
+--specgram_type linear <span class="se">\</span>
+--manifest_paths data/librispeech/manifest.train <span class="se">\</span>
+--output_path data/librispeech/mean_std.npz
 </code></pre>
 </div>
 
-<p><code class="highlighter-rouge">sh run_all.sh</code> prepares all ASR datasets (currently, only LibriSpeech available). After running, we have several summarization manifest files in json-format.</p>
+<p>It will compute the mean and standard deviation of power spectrum feature with 2000 random sampled audio clips listed in <code class="highlighter-rouge">data/librispeech/manifest.train</code> and save the results to <code class="highlighter-rouge">data/librispeech/mean_std.npz</code> for further usage.</p>
 
-<p>A manifest file summarizes a speech data set, with each line containing the meta data (i.e. audio filepath, transcript text, audio duration) of each audio file within the data set, in json format. Manifest file serves as an interface informing our system of  where and what to read the speech samples.</p>
+<h3 id="build-vocabulary">Build Vocabulary</h3>
 
-<p>More help for arguments:</p>
+<p>A vocabulary of possible characters is required to convert the transcription into a list of token indices for training, and in decoding, to convert from a list of indices back to text again. Such a character-based vocabulary can be built with <code class="highlighter-rouge">tools/build_vocab.py</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>python datasets/librispeech/librispeech.py --help
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>python tools/build_vocab.py <span class="se">\</span>
+--count_threshold 0 <span class="se">\</span>
+--vocab_path data/librispeech/eng_vocab.txt <span class="se">\</span>
+--manifest_paths data/librispeech/manifest.train
 </code></pre>
 </div>
 
-<h3 id="preparing-for-training">Preparing for Training</h3>
+<p>It will write a vocabuary file <code class="highlighter-rouge">data/librispeeech/eng_vocab.txt</code> with all transcription text in <code class="highlighter-rouge">data/librispeech/manifest.train</code>, without vocabulary truncation (<code class="highlighter-rouge">--count_threshold 0</code>).</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>python compute_mean_std.py
+<h3 id="more-help">More Help</h3>
+
+<p>For more help on arguments:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>python data/librispeech/librispeech.py --help
+python tools/compute_mean_std.py --help
+python tools/build_vocab.py --help
 </code></pre>
 </div>
 
-<p><code class="highlighter-rouge">python compute_mean_std.py</code> computes mean and stdandard deviation for audio features, and save them to a file with a default name <code class="highlighter-rouge">./mean_std.npz</code>. This file will be used in both training and inferencing.</p>
+<h2 id="training-a-model">Training a model</h2>
 
-<p>More help for arguments:</p>
+<p><code class="highlighter-rouge">train.py</code> is the main caller of the training module. Examples of usage are shown below.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>python compute_mean_std.py --help
+<ul>
+  <li>
+    <p>Start training from scratch with 8 GPUs:</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>  CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python train.py --trainer_count 8
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>Start training from scratch with 16 CPUs:</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>  python train.py --use_gpu False --trainer_count 16
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>Resume training from a checkpoint:</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>  CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+  python train.py \
+  --init_model_path CHECKPOINT_PATH_TO_RESUME_FROM
+</code></pre>
+    </div>
+  </li>
+</ul>
+
+<p>For more help on arguments:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>python train.py --help
+</code></pre>
+</div>
+<p>or refer to <code class="highlighter-rouge">example/librispeech/run_train.sh</code>.</p>
+
+<h2 id="data-augmentation-pipeline">Data Augmentation Pipeline</h2>
+
+<p>Data augmentation has often been a highly effective technique to boost the deep learning performance. We augment our speech data by synthesizing new audios with small random perturbation (label-invariant transformation) added upon raw audios. You don’t have to do the syntheses on your own, as it is already embedded into the data provider and is done on the fly, randomly for each epoch during training.</p>
+
+<p>Six optional augmentation components are provided to be selected, configured and inserted into the processing pipeline.</p>
+
+<ul>
+  <li>Volume Perturbation</li>
+  <li>Speed Perturbation</li>
+  <li>Shifting Perturbation</li>
+  <li>Online Bayesian normalization</li>
+  <li>Noise Perturbation (need background noise audio files)</li>
+  <li>Impulse Response (need impulse audio files)</li>
+</ul>
+
+<p>In order to inform the trainer of what augmentation components are needed and what their processing orders are, it is required to prepare in advance a <em>augmentation configuration file</em> in <a href="http://www.json.org/">JSON</a> format. For example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>[{
+    "type": "speed",
+    "params": {"min_speed_rate": 0.95,
+               "max_speed_rate": 1.05},
+    "prob": 0.6
+},
+{
+    "type": "shift",
+    "params": {"min_shift_ms": -5,
+               "max_shift_ms": 5},
+    "prob": 0.8
+}]
 </code></pre>
 </div>
 
-<h3 id="training">Training</h3>
+<p>When the <code class="highlighter-rouge">--augment_conf_file</code> argument of <code class="highlighter-rouge">trainer.py</code> is set to the path of the above example configuration file, every audio clip in every epoch will be processed: with 60% of chance, it will first be speed perturbed with a uniformly random sampled speed-rate between 0.95 and 1.05, and then with 80% of chance it will be shifted in time with a random sampled offset between -5 ms and 5 ms. Finally this newly synthesized audio clip will be feed into the feature extractor for further training.</p>
 
-<p>For GPU Training:</p>
+<p>For other configuration examples, please refer to <code class="highlighter-rouge">conf/augmenatation.config.example</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python train.py
+<p>Be careful when utilizing the data augmentation technique, as improper augmentation will do harm to the training, due to the enlarged train-test gap.</p>
+
+<h2 id="inference-and-evaluation">Inference and Evaluation</h2>
+
+<h3 id="prepare-language-model">Prepare Language Model</h3>
+
+<p>A language model is required to improve the decoder’s performance. We have prepared two language models (with lossy compression) for users to download and try. One is for English and the other is for Mandarin. Users can simply run this to download the preprared language models:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="nb">cd </span>models/lm
+sh download_lm_en.sh
+sh download_lm_ch.sh
 </code></pre>
 </div>
 
-<p>For CPU Training:</p>
+<p>If you wish to train your own better language model, please refer to <a href="https://github.com/kpu/kenlm">KenLM</a> for tutorials. Here we provide some tips to show how we preparing our English and Mandarin language models. You can take it as a reference when you train your own.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>python train.py --use_gpu False
+<h4 id="english-lm">English LM</h4>
+
+<p>The English corpus is from the <a href="http://commoncrawl.org">Common Crawl Repository</a> and you can download it from <a href="http://data.statmt.org/ngrams/deduped_en">statmt</a>. We use part en.00 to train our English languge model. There are some preprocessing steps before training:</p>
+
+<ul>
+  <li>Characters not in [A-Za-z0-9\s’] (\s represents whitespace characters) are removed and Arabic numbers are converted to English numbers like 1000 to one thousand.</li>
+  <li>Repeated whitespace characters are squeezed to one and the beginning whitespace characters are removed. Notice that all transcriptions are lowercase, so all characters are converted to lowercase.</li>
+  <li>Top 400,000 most frequent words are selected to build the vocabulary and the rest are replaced with ‘UNKNOWNWORD’.</li>
+</ul>
+
+<p>Now the preprocessing is done and we get a clean corpus to train the language model. Our released language model are trained with agruments ‘-o 5 –prune 0 1 1 1 1’. ‘-o 5’ means the max order of language model is 5. ‘–prune 0 1 1 1 1’ represents count thresholds for each order and more specifically it will prune singletons for orders two and higher. To save disk storage we convert the arpa file to ‘trie’ binary file with arguments ‘-a 22 -q 8 -b 8’. ‘-a’ represents the maximum number of leading bits of pointers in ‘trie’ to chop. ‘-q -b’ are quantization parameters for probability and backoff.</p>
+
+<h4 id="mandarin-lm">Mandarin LM</h4>
+
+<p>Different from the English language model, Mandarin language model is character-based where each token is a Chinese character. We use an internal corpus to train the released Mandarin language model. This corpus contains billions of tokens. The preprocessing has tiny difference from English language model and main steps include:</p>
+
+<ul>
+  <li>The beginning and trailing whitespace characters are removed.</li>
+  <li>English punctuations and Chinese punctuations are removed.</li>
+  <li>A whitespace character between two tokens is inserted.</li>
+</ul>
+
+<p>Please notice that the released language model only contains Chinese simplified characters. After preprocessing done we can begin to train the language model. The key training arguments are ‘-o 5 –prune 0 1 2 4 4’. Please refer above section for the meaning of each argument. We also convert the arpa file to binary file using default settings.</p>
+
+<h3 id="speech-to-text-inference">Speech-to-text Inference</h3>
+
+<p>An inference module caller <code class="highlighter-rouge">infer.py</code> is provided to infer, decode and visualize speech-to-text results for several given audio clips. It might help to have an intuitive and qualitative evaluation of the ASR model’s performance.</p>
+
+<ul>
+  <li>
+    <p>Inference with GPU:</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  <span class="nv">CUDA_VISIBLE_DEVICES</span><span class="o">=</span>0 python infer.py --trainer_count 1
 </code></pre>
-</div>
+    </div>
+  </li>
+  <li>
+    <p>Inference with CPUs:</p>
 
-<p>More help for arguments:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>python train.py --help
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  python infer.py --use_gpu False --trainer_count 12
 </code></pre>
-</div>
+    </div>
+  </li>
+</ul>
 
-<h3 id="inferencing">Inferencing</h3>
+<p>We provide two types of CTC decoders: <em>CTC greedy decoder</em> and <em>CTC beam search decoder</em>. The <em>CTC greedy decoder</em> is an implementation of the simple best-path decoding algorithm, selecting at each timestep the most likely token, thus being greedy and locally optimal. The <a href="https://arxiv.org/abs/1408.2873"><em>CTC beam search decoder</em></a> otherwise utilizes a heuristic breadth-first graph search for reaching a near global optimality; it also requires a pre-trained KenLM language model for better scoring and ranking. The decoder type can be set with argument <code class="highlighter-rouge">--decoding_method</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>CUDA_VISIBLE_DEVICES=0 python infer.py
-</code></pre>
-</div>
-
-<p>More help for arguments:</p>
+<p>For more help on arguments:</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>python infer.py --help
 </code></pre>
 </div>
+<p>or refer to <code class="highlighter-rouge">example/librispeech/run_infer.sh</code>.</p>
+
+<h3 id="evaluate-a-model">Evaluate a Model</h3>
+
+<p>To evaluate a model’s performance quantitatively, please run:</p>
+
+<ul>
+  <li>
+    <p>Evaluation with GPUs:</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  <span class="nv">CUDA_VISIBLE_DEVICES</span><span class="o">=</span>0,1,2,3,4,5,6,7 python test.py --trainer_count 8
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>Evaluation with CPUs:</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  python test.py --use_gpu False --trainer_count 12
+</code></pre>
+    </div>
+  </li>
+</ul>
+
+<p>The error rate (default: word error rate; can be set with <code class="highlighter-rouge">--error_rate_type</code>) will be printed.</p>
+
+<p>For more help on arguments:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>python test.py --help
+</code></pre>
+</div>
+<p>or refer to <code class="highlighter-rouge">example/librispeech/run_test.sh</code>.</p>
+
+<h2 id="hyper-parameters-tuning">Hyper-parameters Tuning</h2>
+
+<p>The hyper-parameters $\alpha$ (language model weight) and $\beta$ (word insertion weight) for the <a href="https://arxiv.org/abs/1408.2873"><em>CTC beam search decoder</em></a> often have a significant impact on the decoder’s performance. It would be better to re-tune them on the validation set when the acoustic model is renewed.</p>
+
+<p><code class="highlighter-rouge">tools/tune.py</code> performs a 2-D grid search over the hyper-parameter $\alpha$ and $\beta$. You must provide the range of $\alpha$ and $\beta$, as well as the number of their attempts.</p>
+
+<ul>
+  <li>
+    <p>Tuning with GPU:</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  <span class="nv">CUDA_VISIBLE_DEVICES</span><span class="o">=</span>0,1,2,3,4,5,6,7 <span class="se">\</span>
+  python tools/tune.py <span class="se">\</span>
+  --trainer_count 8 <span class="se">\</span>
+  --alpha_from 1.0 <span class="se">\</span>
+  --alpha_to 3.2 <span class="se">\</span>
+  --num_alphas 45 <span class="se">\</span>
+  --beta_from 0.1 <span class="se">\</span>
+  --beta_to 0.45 <span class="se">\</span>
+  --num_betas 8
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>Tuning with CPU:</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  python tools/tune.py --use_gpu False
+</code></pre>
+    </div>
+    <p>The grid search will print the WER (word error rate) or CER (character error rate) at each point in the hyper-parameters space, and draw the error surface optionally. A proper hyper-parameters range should include the global minima of the error surface for WER/CER, as illustrated in the following figure.</p>
+  </li>
+</ul>
+
+<p align="center">
+&lt;img src="docs/images/tuning_error_surface.png" width=550&gt;
+<br />An example error surface for tuning on the dev-clean set of LibriSpeech
+</p>
+
+<p>Usually, as the figure shows, the variation of language model weight ($\alpha$) significantly affect the performance of CTC beam search decoder. And a better procedure is to first tune on serveral data batches (the number can be specified) to find out the proper range of hyper-parameters, then change to the whole validation set to carray out an accurate tuning.</p>
+
+<p>After tuning, you can reset $\alpha$ and $\beta$ in the inference and evaluation modules to see if they really help improve the ASR performance. For more help</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>python tune.py --help
+</code></pre>
+</div>
+<p>or refer to <code class="highlighter-rouge">example/librispeech/run_tune.sh</code>.</p>
+
+<h2 id="distributed-cloud-training">Distributed Cloud Training</h2>
+
+<p>We also provide a cloud training module for users to do the distributed cluster training on <a href="https://github.com/PaddlePaddle/cloud">PaddleCloud</a>, to achieve a much faster training speed with multiple machines. To start with this, please first install PaddleCloud client and register a PaddleCloud account, as described in <a href="https://github.com/PaddlePaddle/cloud/blob/develop/doc/usage_cn.md#%E4%B8%8B%E8%BD%BD%E5%B9%B6%E9%85%8D%E7%BD%AEpaddlecloud">PaddleCloud Usage</a>.</p>
+
+<p>Please take the following steps to submit a training job:</p>
+
+<ul>
+  <li>
+    <p>Go to directory:</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  <span class="nb">cd </span>cloud
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>Upload data:</p>
+
+    <p>Data must be uploaded to PaddleCloud filesystem to be accessed within a cloud job. <code class="highlighter-rouge">pcloud_upload_data.sh</code> helps do the data packing and uploading:</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>  sh pcloud_upload_data.sh
+</code></pre>
+    </div>
+
+    <p>Given input manifests, <code class="highlighter-rouge">pcloud_upload_data.sh</code> will:</p>
+
+    <ul>
+      <li>Extract the audio files listed in the input manifests.</li>
+      <li>Pack them into a specified number of tar files.</li>
+      <li>Upload these tar files to PaddleCloud filesystem.</li>
+      <li>Create cloud manifests by replacing local filesystem paths with PaddleCloud filesystem paths. New manifests will be used to inform the cloud jobs of audio files’ location and their meta information.</li>
+    </ul>
+
+    <p>It should be done only once for the very first time to do the cloud training. Later, the data is kept persisitent on the cloud filesystem and reusable for further job submissions.</p>
+
+    <p>For argument details please refer to <a href="https://github.com/PaddlePaddle/models/tree/develop/deep_speech_2/cloud">Train DeepSpeech2 on PaddleCloud</a>.</p>
+  </li>
+  <li>
+    <p>Configure training arguments:</p>
+
+    <p>Configure the cloud job parameters in <code class="highlighter-rouge">pcloud_submit.sh</code> (e.g. <code class="highlighter-rouge">NUM_NODES</code>, <code class="highlighter-rouge">NUM_GPUS</code>, <code class="highlighter-rouge">CLOUD_TRAIN_DIR</code>, <code class="highlighter-rouge">JOB_NAME</code> etc.) and then configure other hyper-parameters for training in <code class="highlighter-rouge">pcloud_train.sh</code> (just as what you do for local training).</p>
+
+    <p>For argument details please refer to <a href="https://github.com/PaddlePaddle/models/tree/develop/deep_speech_2/cloud">Train DeepSpeech2 on PaddleCloud</a>.</p>
+  </li>
+  <li>
+    <p>Submit the job:</p>
+
+    <p>By running:</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code> sh pcloud_submit.sh
+</code></pre>
+    </div>
+    <p>a training job has been submitted to PaddleCloud, with the job name printed to the console.</p>
+  </li>
+  <li>
+    <p>Get training logs</p>
+
+    <p>Run this to list all the jobs you have submitted, as well as their running status:</p>
+
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>paddlecloud get <span class="nb">jobs</span>
+</code></pre>
+    </div>
+
+    <p>Run this, the corresponding job’s logs will be printed.</p>
+    <div class="language-bash highlighter-rouge"><pre class="highlight"><code>paddlecloud logs -n 10000 <span class="nv">$REPLACED_WITH_YOUR_ACTUAL_JOB_NAME</span>
+</code></pre>
+    </div>
+  </li>
+</ul>
+
+<p>For more information about the usage of PaddleCloud, please refer to <a href="https://github.com/PaddlePaddle/cloud/blob/develop/doc/usage_cn.md#提交任务">PaddleCloud Usage</a>.</p>
+
+<p>For more information about the DeepSpeech2 training on PaddleCloud, please refer to
+<a href="https://github.com/PaddlePaddle/models/tree/develop/deep_speech_2/cloud">Train DeepSpeech2 on PaddleCloud</a>.</p>
+
+<h2 id="training-for-mandarin-language">Training for Mandarin Language</h2>
+
+<p>TODO: to be added</p>
+
+<h2 id="trying-live-demo-with-your-own-voice">Trying Live Demo with Your Own Voice</h2>
+
+<p>Until now, an ASR model is trained and tested qualitatively (<code class="highlighter-rouge">infer.py</code>) and quantitatively (<code class="highlighter-rouge">test.py</code>) with existing audio files. But it is not yet tested with your own speech. <code class="highlighter-rouge">deploy/demo_server.py</code> and <code class="highlighter-rouge">deploy/demo_client.py</code> helps quickly build up a real-time demo ASR engine with the trained model, enabling you to test and play around with the demo, with your own voice.</p>
+
+<p>To start the demo’s server, please run this in one console:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="nv">CUDA_VISIBLE_DEVICES</span><span class="o">=</span>0 <span class="se">\</span>
+python deploy/demo_server.py <span class="se">\</span>
+--trainer_count 1 <span class="se">\</span>
+--host_ip localhost <span class="se">\</span>
+--host_port 8086
+</code></pre>
+</div>
+
+<p>For the machine (might not be the same machine) to run the demo’s client, please do the following installation before moving on.</p>
+
+<p>For example, on MAC OS X:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>brew install portaudio
+pip install pyaudio
+pip install pynput
+</code></pre>
+</div>
+
+<p>Then to start the client, please run this in another console:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="nv">CUDA_VISIBLE_DEVICES</span><span class="o">=</span>0 <span class="se">\</span>
+python -u deploy/demo_client.py <span class="se">\</span>
+--host_ip <span class="s1">'localhost'</span> <span class="se">\</span>
+--host_port 8086
+</code></pre>
+</div>
+
+<p>Now, in the client console, press the <code class="highlighter-rouge">whitespace</code> key, hold, and start speaking. Until finishing your utterance, release the key to let the speech-to-text results shown in the console. To quit the client, just press <code class="highlighter-rouge">ESC</code> key.</p>
+
+<p>Notice that <code class="highlighter-rouge">deploy/demo_client.py</code> must be run on a machine with a microphone device, while <code class="highlighter-rouge">deploy/demo_server.py</code> could be run on one without any audio recording hardware, e.g. any remote server machine. Just be careful to set the <code class="highlighter-rouge">host_ip</code> and <code class="highlighter-rouge">host_port</code> argument with the actual accessible IP address and port, if the server and client are running with two separate machines. Nothing should be done if they are running on one single machine.</p>
+
+<p>Please also refer to <code class="highlighter-rouge">examples/mandarin/run_demo_server.sh</code>, which will first download a pre-trained Mandarin model (trained with 3000 hours of internal speech data) and then start the demo server with the model. With running <code class="highlighter-rouge">examples/mandarin/run_demo_client.sh</code>, you can speak Mandarin to test it. If you would like to try some other models, just update <code class="highlighter-rouge">--model_path</code> argument in the script.  </p>
+
+<p>For more help on arguments:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>python deploy/demo_server.py --help
+python deploy/demo_client.py --help
+</code></pre>
+</div>
+
+<h2 id="released-models">Released Models</h2>
+
+<h4 id="speech-model-released">Speech Model Released</h4>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: center">Language</th>
+      <th style="text-align: center">Model Name</th>
+      <th style="text-align: center">Training Data</th>
+      <th style="text-align: right">Training Hours</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center">English</td>
+      <td style="text-align: center"><a href="http://cloud.dlnel.org/filepub/?uuid=17404caf-cf19-492f-9707-1fad07c19aae">LibriSpeech Model</a></td>
+      <td style="text-align: center"><a href="http://www.openslr.org/12/">LibriSpeech Dataset</a></td>
+      <td style="text-align: right">960 h</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">English</td>
+      <td style="text-align: center"><a href="to-be-added">Internal English Model</a></td>
+      <td style="text-align: center">Baidu English Dataset</td>
+      <td style="text-align: right">8628 h</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">Mandarin</td>
+      <td style="text-align: center"><a href="http://cloud.dlnel.org/filepub/?uuid=6c83b9d8-3255-4adf-9726-0fe0be3d0274">Aishell Model</a></td>
+      <td style="text-align: center"><a href="http://www.openslr.org/33/">Aishell Dataset</a></td>
+      <td style="text-align: right">151 h</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">Mandarin</td>
+      <td style="text-align: center"><a href="to-be-added">Internal Mandarin Model</a></td>
+      <td style="text-align: center">Baidu Mandarin Dataset</td>
+      <td style="text-align: right">2917 h</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="language-model-released">Language Model Released</h4>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: center">Language Model</th>
+      <th style="text-align: center">Training Data</th>
+      <th style="text-align: center">Token-based</th>
+      <th style="text-align: right">Size</th>
+      <th style="text-align: right">Filter Configuraiton</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center"><a href="http://paddlepaddle.bj.bcebos.com/model_zoo/speech/common_crawl_00.prune01111.trie.klm">English LM</a></td>
+      <td style="text-align: center">To Be Added</td>
+      <td style="text-align: center">Word-based</td>
+      <td style="text-align: right">8.3 GB</td>
+      <td style="text-align: right">To Be Added</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><a href="http://cloud.dlnel.org/filepub/?uuid=d21861e4-4ed6-45bb-ad8e-ae417a43195e">Mandarin LM</a></td>
+      <td style="text-align: center">To Be Added</td>
+      <td style="text-align: center">Character-based</td>
+      <td style="text-align: right">2.8 GB</td>
+      <td style="text-align: right">To Be Added</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="experiments-and-benchmarks">Experiments and Benchmarks</h2>
+
+<h4 id="english-model-evaluation-word-error-rate">English Model Evaluation (Word Error Rate)</h4>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: center">Test Set</th>
+      <th style="text-align: right">LibriSpeech Model</th>
+      <th style="text-align: right">Internal English Model</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center">LibriSpeech-Test-Clean</td>
+      <td style="text-align: right">7.96</td>
+      <td style="text-align: right">X.X</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">LibriSpeech-Test-Other</td>
+      <td style="text-align: right">23.87</td>
+      <td style="text-align: right">X.X</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">VoxForge-Test</td>
+      <td style="text-align: right">X.X</td>
+      <td style="text-align: right">X.X</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">Baidu-English-Test</td>
+      <td style="text-align: right">X.X</td>
+      <td style="text-align: right">X.X</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>(Beam size=2000)</p>
+
+<h4 id="mandarin-model-evaluation-character-error-rate">Mandarin Model Evaluation (Character Error Rate)</h4>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: center">Test Set</th>
+      <th style="text-align: center">Aishell Model</th>
+      <th style="text-align: center">Internal Mandarin Model</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center">Aishell-Test</td>
+      <td style="text-align: center">X.X</td>
+      <td style="text-align: center">X.X</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">Baidu-Mandarin-Test</td>
+      <td style="text-align: center">X.X</td>
+      <td style="text-align: center">X.X</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="acceleration-with-multi-gpus">Acceleration with Multi-GPUs</h4>
+
+<p>We compare the training time with 1, 2, 4, 8, 16 Tesla K40m GPUs (with a subset of LibriSpeech samples whose audio durations are between 6.0 and 7.0 seconds).  And it shows that a <strong>near-linear</strong> acceleration with multiple GPUs has been achieved. In the following figure, the time (in seconds) cost for training is printed on the blue bars.</p>
+
+<p>&lt;img src=”docs/images/multi_gpu_speedup.png” width=450&gt;<br /></p>
+
+<table>
+  <thead>
+    <tr>
+      <th># of GPU</th>
+      <th style="text-align: right">Acceleration Rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td style="text-align: right">1.00 X</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td style="text-align: right">1.97 X</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td style="text-align: right">3.74 X</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td style="text-align: right">6.21 X</td>
+    </tr>
+    <tr>
+      <td>16</td>
+      <td style="text-align: right">10.70 X</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><code class="highlighter-rouge">tools/profile.sh</code> provides such a profiling tool.</p>
+
+<h2 id="questions-and-help">Questions and Help</h2>
+
+<p>You are welcome to submit questions and bug reports in <a href="https://github.com/PaddlePaddle/models/issues">Github Issues</a>. You are also welcome to contribute to this project.</p>
 
   </div>
 
